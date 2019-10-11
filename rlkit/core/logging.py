@@ -16,6 +16,7 @@ import json
 import pickle
 import errno
 import torch
+from tensorboardX import SummaryWriter
 
 from rlkit.core.tabulate import tabulate
 
@@ -91,6 +92,9 @@ class Logger(object):
         self._log_tabular_only = False
         self._header_printed = False
         self.table_printer = TerminalTablePrinter()
+
+        self._tb_step = 0
+        self._tb_logs = {}
 
     def reset(self):
         self.__init__()
@@ -175,12 +179,30 @@ class Logger(object):
         self._tabular.append((self._tabular_prefix_str + str(key), str(val)))
 
     def record_dict(self, d, prefix=None):
+        if prefix in ['exploration/', 'evaluation/', 'trainer/']:
+            self.record_tensorboard(d, prefix[:-1])
         if prefix is not None:
             self.push_tabular_prefix(prefix)
         for k, v in d.items():
             self.record_tabular(k, v)
         if prefix is not None:
             self.pop_tabular_prefix()
+
+    def record_tensorboard(self, d, prefix):
+        if prefix not in self._tb_logs:
+            self._tb_logs[prefix] = SummaryWriter(os.path.join(self._snapshot_dir, prefix))
+
+        tb_log = self._tb_logs[prefix]
+        for k, v in d.items():
+            if k in ['Average Returns', 'Num Paths', 'num_paths_total',]:
+                continue
+            k = str(k)
+            k = k.replace(' ', '_')
+            idx = k.rfind('_')
+            if idx >= 0:
+                k = k[:idx] + '/' + k[idx+1:]
+            tb_log.add_scalar(k, v, global_step=self._tb_step)
+        self._tb_step += 1
 
     def push_tabular_prefix(self, key):
         self._tabular_prefixes.append(key)

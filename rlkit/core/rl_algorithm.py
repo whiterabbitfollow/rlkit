@@ -1,5 +1,6 @@
 import abc
 from collections import OrderedDict
+from tensorboardX import SummaryWriter
 
 import gtimer as gt
 
@@ -79,7 +80,6 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
 
     def _log_stats(self, epoch):
         logger.log("Epoch {} finished".format(epoch), with_timestamp=True)
-
         """
         Replay Buffer
         """
@@ -134,7 +134,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         gt.stamp('logging')
         logger.record_dict(_get_epoch_timings())
         logger.record_tabular('Epoch', epoch)
-        logger.dump_tabular(with_prefix=False, with_timestamp=False)
+        # logger.dump_tabular(with_prefix=False, with_timestamp=False)
 
     @abc.abstractmethod
     def training_mode(self, mode):

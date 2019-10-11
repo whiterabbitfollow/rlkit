@@ -75,6 +75,8 @@ class MdpPathCollector(PathCollector):
             path_lens,
             always_show_all_stats=True,
         ))
+        dones = [path['terminals'][-1][0] for path in self._epoch_paths]
+        stats['SuccessRate'] = sum(dones) / len(dones)
         return stats
 
     def get_snapshot(self):
@@ -163,6 +165,8 @@ class GoalConditionedPathCollector(PathCollector):
             path_lens,
             always_show_all_stats=True,
         ))
+        dones = [path['terminals'][-1][0] for path in self._epoch_paths]
+        stats['SuccessRate'] = sum(dones) / len(dones)
         return stats
 
     def get_snapshot(self):
