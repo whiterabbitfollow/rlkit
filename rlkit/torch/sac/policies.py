@@ -37,6 +37,7 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             action_dim,
             std=None,
             init_w=1e-3,
+            residual_connections=False,
             **kwargs
     ):
         super().__init__(
@@ -44,6 +45,7 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             input_size=obs_dim,
             output_size=action_dim,
             init_w=init_w,
+            residual_connections=residual_connections,
             **kwargs
         )
         self.log_std = None
@@ -80,7 +82,13 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
         """
         h = obs
         for i, fc in enumerate(self.fcs):
-            h = self.hidden_activation(fc(h))
+            residual = h
+            out = fc(h)
+            out = self.hidden_activation(out)
+            if self.residual_connections and i > 0 and i < len(self.fcs) - 1:
+                h = out + residual
+            else:
+                h = out
         mean = self.last_fc(h)
         if self.std is None:
             log_std = self.last_fc_log_std(h)
