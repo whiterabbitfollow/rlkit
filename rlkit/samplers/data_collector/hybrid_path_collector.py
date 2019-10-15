@@ -41,27 +41,27 @@ class HybridPathCollector(MdpPathCollector):
                     and discard_incomplete_paths):
                 break
             path_expert_len = 0
-            # if the path is not successful, add expert demonstration
-            if not path['terminals'][-1]:
+            # if the path did not reach the goal, add expert demonstration
+            if not path['rewards'][-1] > 0:
                 path_expert = rollout(self._env, self._expert_policy,
                                       max_path_length=max_path_length_this_loop)
-                # if expert demonstration is successful, add it to buffer
-                if path_expert['terminals'][-1]:
+                # if expert demonstration successfully reached goal, add it to buffer
+                if path_expert['rewards'][-1] > 0:
                     paths.append(path_expert)
                     path_expert_len = len(path_expert['actions'])
                 else:
                     print('No expert solution found.')
-                    import pickle as pkl
-                    import os
-                    filename_fails = '/sequoia/data1/rstrudel/code/nmp/fails.pkl'
-                    if os.path.exists(filename_fails):
-                        with open(filename_fails, 'rb') as fpkl:
-                            file_fails = pkl.load(fpkl)
-                    else:
-                        file_fails = []
-                    file_fails.append((self._env.idx_env, self._env.start, self._env.goal))
-                    with open(filename_fails, 'wb') as fpkl:
-                        pkl.dump(file_fails, fpkl)
+                    # import pickle as pkl
+                    # import os
+                    # filename_fails = '/sequoia/data1/rstrudel/code/nmp/fails.pkl'
+                    # if os.path.exists(filename_fails):
+                    #     with open(filename_fails, 'rb') as fpkl:
+                    #         file_fails = pkl.load(fpkl)
+                    # else:
+                    #     file_fails = []
+                    # file_fails.append((self._env.idx_env, self._env.start, self._env.goal))
+                    # with open(filename_fails, 'wb') as fpkl:
+                    #     pkl.dump(file_fails, fpkl)
             num_steps_collected += path_len + path_expert_len
             paths.append(path)
         self._num_paths_total += len(paths)
@@ -81,7 +81,7 @@ class HybridPathCollector(MdpPathCollector):
             always_show_all_stats=True,
         ))
         paths_policy = [path for path in self._epoch_paths if 'expert' not in path['agent_infos'][0]]
-        dones = [path['terminals'][-1][0] for path in paths_policy]
-        stats['SuccessRate'] = sum(dones) / len(dones)
-        stats['ExpertSupervision'] = 1 - len(paths_policy) / len(self._epoch_paths)
+        success = [path['rewards'][-1][0] > 0 for path in paths_policy]
+        stats['SuccessRate'] = sum(success) / len(success)
+        stats['Expert_Supervision'] = 1 - len(paths_policy) / len(self._epoch_paths)
         return stats
