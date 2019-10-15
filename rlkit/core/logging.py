@@ -179,7 +179,7 @@ class Logger(object):
         self._tabular.append((self._tabular_prefix_str + str(key), str(val)))
 
     def record_dict(self, d, prefix=None):
-        if prefix in ['exploration/', 'evaluation/', 'trainer/']:
+        if prefix is not None:
             self.record_tensorboard(d, prefix[:-1])
         if prefix is not None:
             self.push_tabular_prefix(prefix)
