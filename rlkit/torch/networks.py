@@ -40,6 +40,7 @@ class Mlp(nn.Module):
 
         self.input_size = input_size
         self.output_size = output_size
+        self.hidden_sizes = hidden_sizes
         self.hidden_activation = hidden_activation
         self.output_activation = output_activation
         self.residual_connections = residual_connections
@@ -99,13 +100,7 @@ class MlpPolicy(Mlp, Policy):
     """
     A simpler interface for creating policies.
     """
-
-    def __init__(
-            self,
-            *args,
-            obs_normalizer: TorchFixedNormalizer = None,
-            **kwargs
-    ):
+    def __init__(self, *args, obs_normalizer: TorchFixedNormalizer = None, **kwargs):
         super().__init__(*args, **kwargs)
         self.obs_normalizer = obs_normalizer
 

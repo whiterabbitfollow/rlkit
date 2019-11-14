@@ -101,10 +101,7 @@ class Logger(object):
         self._prefix_str = ''.join(self._prefixes)
 
     def add_text_output(self, file_name):
-        self._add_output(file_name,
-                         self._text_outputs,
-                         self._text_fds,
-                         mode='a')
+        self._add_output(file_name, self._text_outputs, self._text_fds, mode='a')
 
     def remove_text_output(self, file_name):
         self._remove_output(file_name, self._text_outputs, self._text_fds)
@@ -112,10 +109,7 @@ class Logger(object):
     def add_tabular_output(self, file_name, relative_to_snapshot_dir=False):
         if relative_to_snapshot_dir:
             file_name = osp.join(self._snapshot_dir, file_name)
-        self._add_output(file_name,
-                         self._tabular_outputs,
-                         self._tabular_fds,
-                         mode='w')
+        self._add_output(file_name, self._tabular_outputs, self._tabular_fds, mode='w')
 
     def remove_tabular_output(self, file_name, relative_to_snapshot_dir=False):
         if relative_to_snapshot_dir:
@@ -183,13 +177,17 @@ class Logger(object):
 
         tb_log = self._tb_logs[prefix]
         for k, v in d.items():
-            if k in ['Average Returns', 'Num Paths', 'num_paths_total',]:
+            if k in [
+                    'Average Returns',
+                    'Num Paths',
+                    'num_paths_total',
+            ]:
                 continue
             k = str(k)
             k = k.replace(' ', '_')
             idx = k.rfind('_')
             if idx >= 0:
-                k = k[:idx] + '/' + k[idx+1:]
+                k = k[:idx] + '/' + k[idx + 1:]
             tb_log.add_scalar(k, v, global_step=self._tb_step)
         self._tb_step += 1
 
@@ -240,7 +238,7 @@ class Logger(object):
     def log_variant(self, log_file, variant_data):
         mkdir_p(os.path.dirname(log_file))
         with open(log_file, "w") as f:
-            json.dump(variant_data, f, indent=2, sort_keys=True, cls=MyEncoder)
+            f.write(yaml.dump(variant_data))
 
     def record_tabular_misc_stat(self, key, values, placement='back'):
         if placement == 'front':
@@ -274,10 +272,8 @@ class Logger(object):
             # Also write to the csv files
             # This assumes that the keys in each iteration won't change!
             for tabular_fd in list(self._tabular_fds.values()):
-                writer = csv.DictWriter(tabular_fd,
-                                        fieldnames=list(tabular_dict.keys()))
-                if wh or (
-                        wh is None and tabular_fd not in self._tabular_header_written):
+                writer = csv.DictWriter(tabular_fd, fieldnames=list(tabular_dict.keys()))
+                if wh or (wh is None and tabular_fd not in self._tabular_header_written):
                     writer.writeheader()
                     self._tabular_header_written.add(tabular_fd)
                 writer.writerow(tabular_dict)
@@ -314,4 +310,3 @@ class Logger(object):
 
 
 logger = Logger()
-
