@@ -48,29 +48,23 @@ def experiment(variant):
         expl_env,
         expl_policy,
     )
-    trainer = DQNTrainer(
-        qf=qf,
-        target_qf=target_qf,
-        qf_criterion=qf_criterion,
-        **variant['trainer_kwargs']
-    )
+    trainer = DQNTrainer(qf=qf,
+                         target_qf=target_qf,
+                         qf_criterion=qf_criterion,
+                         **variant['trainer_kwargs'])
     replay_buffer = EnvReplayBuffer(
         variant['replay_buffer_size'],
         expl_env,
     )
-    algorithm = TorchBatchRLAlgorithm(
-        trainer=trainer,
-        exploration_env=expl_env,
-        evaluation_env=eval_env,
-        exploration_data_collector=expl_path_collector,
-        evaluation_data_collector=eval_path_collector,
-        replay_buffer=replay_buffer,
-        **variant['algorithm_kwargs']
-    )
+    algorithm = TorchBatchRLAlgorithm(trainer=trainer,
+                                      exploration_env=expl_env,
+                                      evaluation_env=eval_env,
+                                      exploration_data_collector=expl_path_collector,
+                                      evaluation_data_collector=eval_path_collector,
+                                      replay_buffer=replay_buffer,
+                                      **variant['algorithm_kwargs'])
     algorithm.to(ptu.device)
     algorithm.train()
-
-
 
 
 if __name__ == "__main__":

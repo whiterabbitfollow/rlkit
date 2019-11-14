@@ -8,6 +8,4 @@ from rlkit.samplers.data_collector.path_collector import (
     GoalConditionedPathCollector,
 )
 from rlkit.samplers.data_collector.hybrid_path_collector import HybridPathCollector
-from rlkit.samplers.data_collector.step_collector import (
-    GoalConditionedStepCollector
-)
+from rlkit.samplers.data_collector.step_collector import (GoalConditionedStepCollector)

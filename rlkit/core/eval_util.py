@@ -18,18 +18,14 @@ def get_generic_path_information(paths, stat_prefix=''):
     returns = [sum(path["rewards"]) for path in paths]
 
     rewards = np.vstack([path["rewards"] for path in paths])
-    statistics.update(create_stats_ordered_dict('Rewards', rewards,
-                                                stat_prefix=stat_prefix))
-    statistics.update(create_stats_ordered_dict('Returns', returns,
-                                                stat_prefix=stat_prefix))
+    statistics.update(create_stats_ordered_dict('Rewards', rewards, stat_prefix=stat_prefix))
+    statistics.update(create_stats_ordered_dict('Returns', returns, stat_prefix=stat_prefix))
     actions = [path["actions"] for path in paths]
     if len(actions[0].shape) == 1:
         actions = np.hstack([path["actions"] for path in paths])
     else:
         actions = np.vstack([path["actions"] for path in paths])
-    statistics.update(create_stats_ordered_dict(
-        'Actions', actions, stat_prefix=stat_prefix
-    ))
+    statistics.update(create_stats_ordered_dict('Actions', actions, stat_prefix=stat_prefix))
     statistics['Num Paths'] = len(paths)
     statistics[stat_prefix + 'Average Returns'] = get_average_returns(paths)
 
@@ -100,8 +96,7 @@ def create_stats_ordered_dict(
         else:
             data = np.concatenate(data)
 
-    if (isinstance(data, np.ndarray) and data.size == 1
-            and not always_show_all_stats):
+    if (isinstance(data, np.ndarray) and data.size == 1 and not always_show_all_stats):
         return OrderedDict({name: float(data)})
 
     stats = OrderedDict([

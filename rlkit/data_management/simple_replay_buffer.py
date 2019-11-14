@@ -16,8 +16,7 @@ class SimpleReplayBuffer(ReplayBuffer):
         self._observation_dim = observation_dim
         self._action_dim = action_dim
         self._max_replay_buffer_size = max_replay_buffer_size
-        self._observations = np.zeros(
-            (max_replay_buffer_size, observation_dim))
+        self._observations = np.zeros((max_replay_buffer_size, observation_dim))
         # It's a bit memory inefficient to save the observations twice,
         # but it makes the code *much* easier since you no longer have to
         # worry about termination conditions.
@@ -39,8 +38,8 @@ class SimpleReplayBuffer(ReplayBuffer):
         self._top = 0
         self._size = 0
 
-    def add_sample(self, observation, action, reward, next_observation,
-                   terminal, env_info, agent_info, **kwargs):
+    def add_sample(self, observation, action, reward, next_observation, terminal, env_info,
+                   agent_info, **kwargs):
         self._observations[self._top] = observation
         self._actions[self._top] = action
         self._rewards[self._top] = reward
@@ -78,10 +77,7 @@ class SimpleReplayBuffer(ReplayBuffer):
         return {key: self._env_infos[key][idx] for key in self._env_info_keys}
 
     def batch_env_info_dict(self, indices):
-        return {
-            key: self._env_infos[key][indices]
-            for key in self._env_info_keys
-        }
+        return {key: self._env_infos[key][indices] for key in self._env_info_keys}
 
     def num_steps_can_sample(self):
         return self._size

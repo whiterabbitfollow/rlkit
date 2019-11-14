@@ -6,8 +6,7 @@ from rlkit.envs.goal_generation.pickup_goal_dataset import (
 
 import rlkit.torch.vae.vae_schedules as vae_schedules
 from multiworld.envs.mujoco.cameras import (
-    sawyer_pick_and_place_camera,
-)
+    sawyer_pick_and_place_camera, )
 from rlkit.launchers.launcher_util import run_experiment
 from rlkit.launchers.skewfit_experiments import skewfit_full_experiment
 from rlkit.torch.vae.conv_vae import imsize48_default_architecture
@@ -30,18 +29,10 @@ if __name__ == "__main__":
                 lr=1e-3,
             ),
             generate_goal_dataset_fctn=get_image_presampled_goals_from_vae_env,
-            goal_generation_kwargs=dict(
-                num_presampled_goals=500,
-            ),
-            qf_kwargs=dict(
-                hidden_sizes=[400, 300],
-            ),
-            policy_kwargs=dict(
-                hidden_sizes=[400, 300],
-            ),
-            vf_kwargs=dict(
-                hidden_sizes=[400, 300],
-            ),
+            goal_generation_kwargs=dict(num_presampled_goals=500, ),
+            qf_kwargs=dict(hidden_sizes=[400, 300], ),
+            policy_kwargs=dict(hidden_sizes=[400, 300], ),
+            vf_kwargs=dict(hidden_sizes=[400, 300], ),
             max_path_length=50,
             algo_kwargs=dict(
                 batch_size=1024,
@@ -85,14 +76,10 @@ if __name__ == "__main__":
             exploration_type='ou',
             training_mode='train',
             testing_mode='test',
-            reward_params=dict(
-                type='latent_distance',
-            ),
+            reward_params=dict(type='latent_distance', ),
             observation_key='latent_observation',
             desired_goal_key='latent_desired_goal',
-            vae_wrapped_env_kwargs=dict(
-                sample_from_true_prior=False,
-            ),
+            vae_wrapped_env_kwargs=dict(sample_from_true_prior=False, ),
         ),
         train_vae_variant=dict(
             representation_size=16,
@@ -110,10 +97,8 @@ if __name__ == "__main__":
                 N=10,
                 oracle_dataset=True,
                 use_cached=False,
-                num_channels=3*num_images,
+                num_channels=3 * num_images,
             ),
-
-
             algo_kwargs=dict(
                 start_skew_epoch=12000,
                 is_auto_encoder=False,
@@ -138,14 +123,13 @@ if __name__ == "__main__":
 
     search_space = {}
     sweeper = hyp.DeterministicHyperparameterSweeper(
-        search_space, default_parameters=variant,
+        search_space,
+        default_parameters=variant,
     )
 
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'dev-{}'.format(
-        __file__.replace('/', '-').replace('_', '-').split('.')[0]
-    )
+    exp_prefix = 'dev-{}'.format(__file__.replace('/', '-').replace('_', '-').split('.')[0])
 
     # n_seeds = 3
     # mode = 'gcp'
@@ -162,8 +146,5 @@ if __name__ == "__main__":
                 snapshot_gap=200,
                 snapshot_mode='gap_and_last',
                 num_exps_per_instance=3,
-                gcp_kwargs=dict(
-                    zone='us-west1-b',
-                ),
-
+                gcp_kwargs=dict(zone='us-west1-b', ),
             )

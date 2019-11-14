@@ -5,7 +5,6 @@ import rlkit.torch.vae.vae_schedules as vae_schedules
 from rlkit.launchers.skewfit_experiments import skewfit_full_experiment
 from rlkit.torch.vae.conv_vae import imsize48_default_architecture
 
-
 if __name__ == "__main__":
     variant = dict(
         algorithm='Skew-Fit',
@@ -22,15 +21,9 @@ if __name__ == "__main__":
                 lr=1e-3,
             ),
             save_video_period=100,
-            qf_kwargs=dict(
-                hidden_sizes=[400, 300],
-            ),
-            policy_kwargs=dict(
-                hidden_sizes=[400, 300],
-            ),
-            vf_kwargs=dict(
-                hidden_sizes=[400, 300],
-            ),
+            qf_kwargs=dict(hidden_sizes=[400, 300], ),
+            policy_kwargs=dict(hidden_sizes=[400, 300], ),
+            vf_kwargs=dict(hidden_sizes=[400, 300], ),
             max_path_length=50,
             algo_kwargs=dict(
                 batch_size=1024,
@@ -74,14 +67,10 @@ if __name__ == "__main__":
             exploration_type='ou',
             training_mode='train',
             testing_mode='test',
-            reward_params=dict(
-                type='latent_distance',
-            ),
+            reward_params=dict(type='latent_distance', ),
             observation_key='latent_observation',
             desired_goal_key='latent_desired_goal',
-            vae_wrapped_env_kwargs=dict(
-                sample_from_true_prior=True,
-            ),
+            vae_wrapped_env_kwargs=dict(sample_from_true_prior=True, ),
         ),
         train_vae_variant=dict(
             representation_size=4,
@@ -122,20 +111,18 @@ if __name__ == "__main__":
                 ),
                 use_parallel_dataloading=False,
             ),
-
             save_period=25,
         ),
     )
     search_space = {}
     sweeper = hyp.DeterministicHyperparameterSweeper(
-        search_space, default_parameters=variant,
+        search_space,
+        default_parameters=variant,
     )
 
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'dev-{}'.format(
-        __file__.replace('/', '-').replace('_', '-').split('.')[0]
-    )
+    exp_prefix = 'dev-{}'.format(__file__.replace('/', '-').replace('_', '-').split('.')[0])
 
     n_seeds = 3
     mode = 'ec2'
@@ -143,19 +130,15 @@ if __name__ == "__main__":
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
-            run_experiment(
-                skewfit_full_experiment,
-                exp_prefix=exp_prefix,
-                mode=mode,
-                variant=variant,
-                use_gpu=True,
-                num_exps_per_instance=3,
-                gcp_kwargs=dict(
-                    terminate=True,
-                    zone='us-east1-c',
-                    gpu_kwargs=dict(
-                        gpu_model='nvidia-tesla-k80',
-                        num_gpu=1,
-                    )
-                )
-          )
+            run_experiment(skewfit_full_experiment,
+                           exp_prefix=exp_prefix,
+                           mode=mode,
+                           variant=variant,
+                           use_gpu=True,
+                           num_exps_per_instance=3,
+                           gcp_kwargs=dict(terminate=True,
+                                           zone='us-east1-c',
+                                           gpu_kwargs=dict(
+                                               gpu_model='nvidia-tesla-k80',
+                                               num_gpu=1,
+                                           )))

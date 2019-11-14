@@ -30,10 +30,8 @@ def simulate_policy(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('file', type=str,
-                        help='path to the snapshot file')
-    parser.add_argument('--H', type=int, default=300,
-                        help='Max length of rollout')
+    parser.add_argument('file', type=str, help='path to the snapshot file')
+    parser.add_argument('--H', type=int, default=300, help='Max length of rollout')
     parser.add_argument('--gpu', action='store_true')
     args = parser.parse_args()
 

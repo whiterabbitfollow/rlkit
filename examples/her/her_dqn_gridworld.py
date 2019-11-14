@@ -46,18 +46,13 @@ def experiment(variant):
         hidden_sizes=[400, 300],
     )
     eval_policy = ArgmaxDiscretePolicy(qf)
-    exploration_strategy = EpsilonGreedy(
-        action_space=expl_env.action_space,
-    )
+    exploration_strategy = EpsilonGreedy(action_space=expl_env.action_space, )
     expl_policy = PolicyWrappedWithExplorationStrategy(
         exploration_strategy=exploration_strategy,
         policy=eval_policy,
     )
 
-    replay_buffer = ObsDictRelabelingBuffer(
-        env=eval_env,
-        **variant['replay_buffer_kwargs']
-    )
+    replay_buffer = ObsDictRelabelingBuffer(env=eval_env, **variant['replay_buffer_kwargs'])
     observation_key = 'observation'
     desired_goal_key = 'desired_goal'
     eval_path_collector = GoalConditionedPathCollector(
@@ -72,21 +67,15 @@ def experiment(variant):
         observation_key=observation_key,
         desired_goal_key=desired_goal_key,
     )
-    trainer = DQNTrainer(
-        qf=qf,
-        target_qf=target_qf,
-        **variant['trainer_kwargs']
-    )
+    trainer = DQNTrainer(qf=qf, target_qf=target_qf, **variant['trainer_kwargs'])
     trainer = HERTrainer(trainer)
-    algorithm = TorchBatchRLAlgorithm(
-        trainer=trainer,
-        exploration_env=expl_env,
-        evaluation_env=eval_env,
-        exploration_data_collector=expl_path_collector,
-        evaluation_data_collector=eval_path_collector,
-        replay_buffer=replay_buffer,
-        **variant['algo_kwargs']
-    )
+    algorithm = TorchBatchRLAlgorithm(trainer=trainer,
+                                      exploration_env=expl_env,
+                                      evaluation_env=eval_env,
+                                      exploration_data_collector=expl_path_collector,
+                                      evaluation_data_collector=eval_path_collector,
+                                      replay_buffer=replay_buffer,
+                                      **variant['algo_kwargs'])
     algorithm.to(ptu.device)
     algorithm.train()
 
@@ -102,9 +91,7 @@ if __name__ == "__main__":
             min_num_steps_before_training=1000,
             batch_size=128,
         ),
-        trainer_kwargs=dict(
-            discount=0.99,
-        ),
+        trainer_kwargs=dict(discount=0.99, ),
         replay_buffer_kwargs=dict(
             max_size=100000,
             fraction_goals_rollout_goals=0.2,  # equal to k = 4 in HER paper

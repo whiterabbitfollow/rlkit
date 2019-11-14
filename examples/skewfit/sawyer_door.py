@@ -8,7 +8,6 @@ from rlkit.launchers.skewfit_experiments import \
     skewfit_full_experiment
 from rlkit.torch.vae.conv_vae import imsize48_default_architecture
 
-
 if __name__ == "__main__":
     variant = dict(
         algorithm='Skew-Fit-SAC',
@@ -25,12 +24,8 @@ if __name__ == "__main__":
                 lr=1e-3,
             ),
             save_video_period=50,
-            qf_kwargs=dict(
-                hidden_sizes=[400, 300],
-            ),
-            policy_kwargs=dict(
-                hidden_sizes=[400, 300],
-            ),
+            qf_kwargs=dict(hidden_sizes=[400, 300], ),
+            policy_kwargs=dict(hidden_sizes=[400, 300], ),
             twin_sac_trainer_kwargs=dict(
                 reward_scale=1,
                 discount=0.99,
@@ -70,9 +65,7 @@ if __name__ == "__main__":
             evaluation_goal_sampling_mode='presampled',
             training_mode='train',
             testing_mode='test',
-            reward_params=dict(
-                type='latent_distance',
-            ),
+            reward_params=dict(type='latent_distance', ),
             observation_key='latent_observation',
             desired_goal_key='latent_desired_goal',
             presampled_goals_path=osp.join(
@@ -81,9 +74,7 @@ if __name__ == "__main__":
                 "door_goals.npy",
             ),
             presample_goals=True,
-            vae_wrapped_env_kwargs=dict(
-                sample_from_true_prior=True,
-            ),
+            vae_wrapped_env_kwargs=dict(sample_from_true_prior=True, ),
         ),
         train_vae_variant=dict(
             representation_size=16,
@@ -105,24 +96,20 @@ if __name__ == "__main__":
                 input_channels=3,
                 architecture=imsize48_default_architecture,
             ),
-            algo_kwargs=dict(
-                lr=1e-3,
-            ),
+            algo_kwargs=dict(lr=1e-3, ),
             save_period=1,
         ),
     )
 
-    search_space = {
-    }
+    search_space = {}
     sweeper = hyp.DeterministicHyperparameterSweeper(
-        search_space, default_parameters=variant,
+        search_space,
+        default_parameters=variant,
     )
 
     n_seeds = 1
     mode = 'local'
-    exp_prefix = 'dev-{}'.format(
-        __file__.replace('/', '-').replace('_', '-').split('.')[0]
-    )
+    exp_prefix = 'dev-{}'.format(__file__.replace('/', '-').replace('_', '-').split('.')[0])
 
     for exp_id, variant in enumerate(sweeper.iterate_hyperparameters()):
         for _ in range(n_seeds):
@@ -132,5 +119,4 @@ if __name__ == "__main__":
                 mode=mode,
                 variant=variant,
                 use_gpu=True,
-          )
-
+            )

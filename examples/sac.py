@@ -56,28 +56,22 @@ def experiment(variant):
         variant['replay_buffer_size'],
         expl_env,
     )
-    trainer = SACTrainer(
-        env=eval_env,
-        policy=policy,
-        qf1=qf1,
-        qf2=qf2,
-        target_qf1=target_qf1,
-        target_qf2=target_qf2,
-        **variant['trainer_kwargs']
-    )
-    algorithm = TorchBatchRLAlgorithm(
-        trainer=trainer,
-        exploration_env=expl_env,
-        evaluation_env=eval_env,
-        exploration_data_collector=expl_path_collector,
-        evaluation_data_collector=eval_path_collector,
-        replay_buffer=replay_buffer,
-        **variant['algorithm_kwargs']
-    )
+    trainer = SACTrainer(env=eval_env,
+                         policy=policy,
+                         qf1=qf1,
+                         qf2=qf2,
+                         target_qf1=target_qf1,
+                         target_qf2=target_qf2,
+                         **variant['trainer_kwargs'])
+    algorithm = TorchBatchRLAlgorithm(trainer=trainer,
+                                      exploration_env=expl_env,
+                                      evaluation_env=eval_env,
+                                      exploration_data_collector=expl_path_collector,
+                                      evaluation_data_collector=eval_path_collector,
+                                      replay_buffer=replay_buffer,
+                                      **variant['algorithm_kwargs'])
     algorithm.to(ptu.device)
     algorithm.train()
-
-
 
 
 if __name__ == "__main__":

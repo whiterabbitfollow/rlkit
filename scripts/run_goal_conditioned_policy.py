@@ -22,14 +22,15 @@ def simulate_policy(args):
         env.enable_render()
     paths = []
     while True:
-        paths.append(multitask_rollout(
-            env,
-            policy,
-            max_path_length=args.H,
-            render=not args.hide,
-            observation_key='observation',
-            desired_goal_key='desired_goal',
-        ))
+        paths.append(
+            multitask_rollout(
+                env,
+                policy,
+                max_path_length=args.H,
+                render=not args.hide,
+                observation_key='observation',
+                desired_goal_key='desired_goal',
+            ))
         if hasattr(env, "log_diagnostics"):
             env.log_diagnostics(paths)
         if hasattr(env, "get_diagnostics"):
@@ -41,14 +42,10 @@ def simulate_policy(args):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('file', type=str,
-                        help='path to the snapshot file')
-    parser.add_argument('--H', type=int, default=300,
-                        help='Max length of rollout')
-    parser.add_argument('--speedup', type=float, default=10,
-                        help='Speedup')
-    parser.add_argument('--mode', default='video_env', type=str,
-                        help='env mode')
+    parser.add_argument('file', type=str, help='path to the snapshot file')
+    parser.add_argument('--H', type=int, default=300, help='Max length of rollout')
+    parser.add_argument('--speedup', type=float, default=10, help='Speedup')
+    parser.add_argument('--mode', default='video_env', type=str, help='env mode')
     parser.add_argument('--gpu', action='store_true')
     parser.add_argument('--enable_render', action='store_true')
     parser.add_argument('--hide', action='store_true')

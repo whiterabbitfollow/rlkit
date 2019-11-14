@@ -12,7 +12,7 @@ import sys
 import datetime
 import dateutil.tz
 import csv
-import json
+import yaml
 import pickle
 import errno
 import torch
@@ -41,21 +41,6 @@ class TerminalTablePrinter(object):
         sys.stdout.write("\x1b[2J\x1b[H")
         sys.stdout.write(tabulate(tabulars, self.headers))
         sys.stdout.write("\n")
-
-
-class MyEncoder(json.JSONEncoder):
-    def default(self, o):
-        if isinstance(o, type):
-            return {'$class': o.__module__ + "." + o.__name__}
-        elif isinstance(o, Enum):
-            return {
-                '$enum': o.__module__ + "." + o.__class__.__name__ + '.' + o.name
-            }
-        elif callable(o):
-            return {
-                '$function': o.__module__ + "." + o.__name__
-            }
-        return json.JSONEncoder.default(self, o)
 
 
 def mkdir_p(path):
@@ -116,7 +101,9 @@ class Logger(object):
         self._prefix_str = ''.join(self._prefixes)
 
     def add_text_output(self, file_name):
-        self._add_output(file_name, self._text_outputs, self._text_fds,
+        self._add_output(file_name,
+                         self._text_outputs,
+                         self._text_fds,
                          mode='a')
 
     def remove_text_output(self, file_name):
@@ -125,7 +112,9 @@ class Logger(object):
     def add_tabular_output(self, file_name, relative_to_snapshot_dir=False):
         if relative_to_snapshot_dir:
             file_name = osp.join(self._snapshot_dir, file_name)
-        self._add_output(file_name, self._tabular_outputs, self._tabular_fds,
+        self._add_output(file_name,
+                         self._tabular_outputs,
+                         self._tabular_fds,
                          mode='w')
 
     def remove_tabular_output(self, file_name, relative_to_snapshot_dir=False):
