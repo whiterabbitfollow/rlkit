@@ -9,6 +9,7 @@ def multitask_rollout(
         render_kwargs=None,
         observation_key=None,
         desired_goal_key=None,
+        representation_goal_key=None,
         get_action_kwargs=None,
         return_dict_obs=False,
 ):
@@ -23,19 +24,20 @@ def multitask_rollout(
     rewards = []
     terminals = []
     agent_infos = []
-    env_infos = []
+    env_infos = {}
     next_observations = []
     path_length = 0
     agent.reset()
     o = env.reset()
     if render:
         env.render(**render_kwargs)
-    goal = o[desired_goal_key]
+    desired_goal = o[desired_goal_key]
+    representation_goal = o[representation_goal_key]
     while path_length < max_path_length:
         dict_obs.append(o)
         if observation_key:
             o = o[observation_key]
-        new_obs = np.hstack((o, goal))
+        new_obs = np.hstack((o, representation_goal))
         a, agent_info = agent.get_action(new_obs, **get_action_kwargs)
         next_o, r, d, env_info = env.step(a)
         if render:
@@ -47,7 +49,12 @@ def multitask_rollout(
         next_observations.append(next_o)
         dict_next_obs.append(next_o)
         agent_infos.append(agent_info)
-        env_infos.append(env_info)
+        if len(env_infos) == 0:
+            for k, v in env_info.items():
+                env_infos[k] = [v]
+        else:
+            for k, v in env_info.items():
+                env_infos[k].append(v)
         path_length += 1
         if d:
             break
@@ -60,6 +67,8 @@ def multitask_rollout(
     if return_dict_obs:
         observations = dict_obs
         next_observations = dict_next_obs
+    for k, v in env_info.items():
+        env_infos[k] = np.array(v)
     return dict(
         observations=observations,
         actions=actions,
@@ -68,7 +77,8 @@ def multitask_rollout(
         terminals=np.array(terminals).reshape(-1, 1),
         agent_infos=agent_infos,
         env_infos=env_infos,
-        goals=np.repeat(goal[None], path_length, 0),
+        representation_goals=np.repeat(representation_goal[None], path_length, 0),
+        desired_goals=np.repeat(desired_goal[None], path_length, 0),
         full_observations=dict_obs,
     )
 
@@ -139,5 +149,5 @@ def rollout(
         next_observations=next_observations,
         terminals=np.array(terminals).reshape(-1, 1),
         agent_infos=agent_infos,
-        env_infos=env_infos,
+        env_infos=np.array(env_infos),
     )

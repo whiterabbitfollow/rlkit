@@ -1,6 +1,5 @@
 import numpy as np
 from gym.spaces import Dict, Discrete
-from joblib import Parallel, delayed
 
 from rlkit.data_management.replay_buffer import ReplayBuffer
 
@@ -20,7 +19,6 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
        *much* easier since you no longer have to worry about termination
        conditions.
     '''
-
     def __init__(
             self,
             max_replay_buffer_size,
@@ -32,6 +30,8 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             observation_key='observation',
             desired_goal_key='desired_goal',
             achieved_goal_key='achieved_goal',
+            robot_state='robot_state',
+            representation_goal_key='representation_goal',
             env_infos_sizes=None,
     ):
         if internal_keys is None:
@@ -55,10 +55,13 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             observation_key,
             desired_goal_key,
             achieved_goal_key,
+            robot_state,
+            representation_goal_key,
         ]
         self.observation_key = observation_key
         self.desired_goal_key = desired_goal_key
         self.achieved_goal_key = achieved_goal_key
+        self.representation_goal_key = representation_goal_key
         if isinstance(self.env.action_space, Discrete):
             self._action_dim = env.action_space.n
         else:
@@ -97,7 +100,6 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         self._size = 0
 
         self.n_workers = 1
-        self.parallel = Parallel(n_jobs=self.n_workers)
 
         # Let j be any index in self._idx_to_future_obs_idx[i]
         # Then self._next_obs[j] is a valid next observation for observation i
@@ -153,7 +155,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
                     self._obs[key][buffer_slice] = obs[key][path_slice]
                     self._next_obs[key][buffer_slice] = next_obs[key][path_slice]
                 for key in self._env_infos_keys:
-                    self._env_infos[key][buffer_slice] = env_infos[path_slice]
+                    self._env_infos[key][buffer_slice] = env_infos[key][path_slice]
             # Pointers from before the wrap
             for i in range(self._top, self.max_replay_buffer_size):
                 self._idx_to_future_obs_idx[i] = np.hstack((
@@ -176,7 +178,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
                 self._obs[key][slc] = obs[key]
                 self._next_obs[key][slc] = next_obs[key]
             for key in self._env_infos_keys:
-                self._env_infos[key][slc] = env_infos
+                self._env_infos[key][slc] = env_infos[key]
             for i in range(self._top, self._top + path_len):
                 self._idx_to_future_obs_idx[i] = np.arange(i, self._top + path_len)
         self._top = (self._top + path_len) % self.max_replay_buffer_size
@@ -188,14 +190,18 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
     def random_batch(self, batch_size):
         indices = self._sample_indices(batch_size)
         resampled_goals = self._next_obs[self.desired_goal_key][indices]
+        # resampled_representation_goals = self._next_obs[self.desired_goal_key][indices]
 
         num_env_goals = int(batch_size * self.fraction_goals_env_goals)
         num_rollout_goals = int(batch_size * self.fraction_goals_rollout_goals)
         num_future_goals = batch_size - (num_env_goals + num_rollout_goals)
         new_obs_dict = self._batch_obs_dict(indices)
+        new_actions = self._actions[indices]
         new_next_obs_dict = self._batch_next_obs_dict(indices)
         old_rewards = self._rewards[indices]
-        obstacles = self._env_infos['obstacles'][indices]
+        env_infos = {}
+        for k, v in self._env_infos.items():
+            env_infos[k] = v[indices]
 
         if num_env_goals > 0:
             env_goals = self.env.sample_goals(num_env_goals)
@@ -234,7 +240,6 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         # resampled_goals must be postprocessed as well
         resampled_goals = new_next_obs_dict[self.desired_goal_key]
 
-        new_actions = self._actions[indices]
         '''
         For example, the environments in this repo have batch-wise
         implementations of computing rewards:
@@ -251,27 +256,18 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             )
         elif num_future_goals > 0:  # Assuming it's a (possibly wrapped) gym GoalEnv
             relabel_indices = slice(batch_size - num_future_goals, batch_size)
-            denorm_states = 0.5 + 0.5 * new_obs_dict[self.achieved_goal_key]
-            denorm_goals = 0.5 + 0.5 * new_next_obs_dict[self.desired_goal_key]
+            for k, v in env_infos.items():
+                env_infos[k] = v[relabel_indices]
 
-            chunks_relabel_indices = np.array_split(
-                np.arange(batch_size - num_future_goals, batch_size), self.n_workers)
-            chunks = [[
-                denorm_states[idxs], new_actions[idxs], denorm_goals[idxs], obstacles[idxs],
-                self.env.action_range, self.env.distance_goal_success, self.env.dict_reward,
-                old_rewards[idxs]
-            ] for idxs in chunks_relabel_indices]
-            batch_compute_rewards = self.env.batch_compute_rewards
-            results = self.parallel(delayed(batch_compute_rewards)(*chunk) for chunk in chunks)
-            for idxs, result in zip(chunks_relabel_indices, results):
-                new_rewards[idxs], new_terminals[idxs] = result[0], result[1]
-            # new_rewards[relabel_indices], new_terminals[
-            #     relabel_indices], _ = self.env.batch_compute_reward(denorm_states,
-            #                                                         new_actions[relabel_indices],
-            #                                                         denorm_goals,
-            #                                                         obstacles[relabel_indices],
-            #                                                         old_rewards[relabel_indices])
+            new_rewards[relabel_indices], new_terminals[
+                relabel_indices], _ = self.env.batch_compute_rewards(
+                    state=new_obs_dict['robot_state'][relabel_indices],
+                    action=new_actions[relabel_indices],
+                    goal=resampled_goals[relabel_indices],
+                    her_previous_reward=old_rewards[relabel_indices],
+                    **env_infos)
 
+        # representation_resampled_goals = self.env.represent_goals()
         new_rewards = new_rewards.reshape(-1, 1)
         new_obs = new_obs_dict[self.observation_key]
         new_next_obs = new_next_obs_dict[self.observation_key]

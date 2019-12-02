@@ -93,6 +93,7 @@ class GoalConditionedPathCollector(PathCollector):
             render_kwargs=None,
             observation_key='observation',
             desired_goal_key='desired_goal',
+            representation_goal_key='representation_goal',
     ):
         if render_kwargs is None:
             render_kwargs = {}
@@ -104,6 +105,7 @@ class GoalConditionedPathCollector(PathCollector):
         self._epoch_paths = deque(maxlen=self._max_num_epoch_paths_saved)
         self._observation_key = observation_key
         self._desired_goal_key = desired_goal_key
+        self._representation_goal_key = representation_goal_key
 
         self._num_steps_total = 0
         self._num_paths_total = 0
@@ -129,6 +131,7 @@ class GoalConditionedPathCollector(PathCollector):
                 render_kwargs=self._render_kwargs,
                 observation_key=self._observation_key,
                 desired_goal_key=self._desired_goal_key,
+                representation_goal_key=self._representation_goal_key,
                 return_dict_obs=True,
             )
             path_len = len(path['actions'])
