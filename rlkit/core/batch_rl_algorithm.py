@@ -5,6 +5,8 @@ from rlkit.core.rl_algorithm import BaseRLAlgorithm
 from rlkit.data_management.replay_buffer import ReplayBuffer
 from rlkit.samplers.data_collector import PathCollector
 
+from tqdm import tqdm
+
 
 class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
     def __init__(
@@ -74,9 +76,8 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 gt.stamp('data storing', unique=False)
 
                 self.training_mode(True)
-                for _ in range(self.num_trains_per_train_loop):
-                    train_data = self.replay_buffer.random_batch(
-                        self.batch_size)
+                for _ in tqdm(range(self.num_trains_per_train_loop)):
+                    train_data = self.replay_buffer.random_batch(self.batch_size)
                     self.trainer.train(train_data)
                 gt.stamp('training', unique=False)
                 self.training_mode(False)

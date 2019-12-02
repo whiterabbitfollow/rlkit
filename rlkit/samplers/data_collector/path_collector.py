@@ -45,11 +45,8 @@ class MdpPathCollector(PathCollector):
                 max_path_length=max_path_length_this_loop,
             )
             path_len = len(path['actions'])
-            if (
-                    path_len != max_path_length
-                    and not path['terminals'][-1]
-                    and discard_incomplete_paths
-            ):
+            if (path_len != max_path_length and not path['terminals'][-1]
+                    and discard_incomplete_paths):
                 break
             num_steps_collected += path_len
             paths.append(path)
@@ -135,11 +132,8 @@ class GoalConditionedPathCollector(PathCollector):
                 return_dict_obs=True,
             )
             path_len = len(path['actions'])
-            if (
-                    path_len != max_path_length
-                    and not path['terminals'][-1]
-                    and discard_incomplete_paths
-            ):
+            if (path_len != max_path_length and not path['terminals'][-1]
+                    and discard_incomplete_paths):
                 break
             num_steps_collected += path_len
             paths.append(path)

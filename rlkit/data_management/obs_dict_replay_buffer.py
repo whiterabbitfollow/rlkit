@@ -1,11 +1,12 @@
 import numpy as np
 from gym.spaces import Dict, Discrete
+from joblib import Parallel, delayed
 
 from rlkit.data_management.replay_buffer import ReplayBuffer
 
 
 class ObsDictRelabelingBuffer(ReplayBuffer):
-    """
+    '''
     Replay buffer for environments whose observations are dictionaries, such as
         - OpenAI Gym GoalEnv environments. https://blog.openai.com/ingredients-for-robotics-research/
         - multiworld MultitaskEnv. https://github.com/vitchyr/multiworld/
@@ -18,11 +19,11 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
        inefficient to save the observations twice, but it makes the code
        *much* easier since you no longer have to worry about termination
        conditions.
-    """
+    '''
 
     def __init__(
             self,
-            max_size,
+            max_replay_buffer_size,
             env,
             fraction_goals_rollout_goals=1.0,
             fraction_goals_env_goals=0.0,
@@ -31,6 +32,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             observation_key='observation',
             desired_goal_key='desired_goal',
             achieved_goal_key='achieved_goal',
+            env_infos_sizes=None,
     ):
         if internal_keys is None:
             internal_keys = []
@@ -45,7 +47,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         assert 0 <= fraction_goals_env_goals
         assert 0 <= fraction_goals_rollout_goals + fraction_goals_env_goals
         assert fraction_goals_rollout_goals + fraction_goals_env_goals <= 1
-        self.max_size = max_size
+        self.max_replay_buffer_size = max_replay_buffer_size
         self.env = env
         self.fraction_goals_rollout_goals = fraction_goals_rollout_goals
         self.fraction_goals_env_goals = fraction_goals_env_goals
@@ -62,34 +64,47 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         else:
             self._action_dim = env.action_space.low.size
 
-        self._actions = np.zeros((max_size, self._action_dim))
+        self._actions = np.zeros((max_replay_buffer_size, self._action_dim))
+        self._rewards = np.zeros((max_replay_buffer_size, 1))
         # self._terminals[i] = a terminal was received at time i
-        self._terminals = np.zeros((max_size, 1), dtype='uint8')
+        self._terminals = np.zeros((max_replay_buffer_size, 1), dtype='uint8')
         # self._obs[key][i] is the value of observation[key] at time i
         self._obs = {}
         self._next_obs = {}
         self.ob_spaces = self.env.observation_space.spaces
         for key in self.ob_keys_to_save + internal_keys:
             assert key in self.ob_spaces, \
-                "Key not found in the observation space: %s" % key
+                'Key not found in the observation space: {}'.format(key)
             type = np.float64
             if key.startswith('image'):
                 type = np.uint8
-            self._obs[key] = np.zeros(
-                (max_size, self.ob_spaces[key].low.size), dtype=type)
-            self._next_obs[key] = np.zeros(
-                (max_size, self.ob_spaces[key].low.size), dtype=type)
+            self._obs[key] = np.zeros((max_replay_buffer_size, self.ob_spaces[key].low.size),
+                                      dtype=type)
+            self._next_obs[key] = np.zeros((max_replay_buffer_size, self.ob_spaces[key].low.size),
+                                           dtype=type)
+
+        if env_infos_sizes is None:
+            if hasattr(env, 'info_sizes'):
+                env_infos_sizes = env.info_sizes
+            else:
+                env_infos_sizes = dict()
+        self._env_infos = {}
+        for key, size in env_infos_sizes.items():
+            self._env_infos[key] = np.zeros((max_replay_buffer_size, size))
+        self._env_infos_keys = env_infos_sizes.keys()
 
         self._top = 0
         self._size = 0
 
+        self.n_workers = 1
+        self.parallel = Parallel(n_jobs=self.n_workers)
+
         # Let j be any index in self._idx_to_future_obs_idx[i]
         # Then self._next_obs[j] is a valid next observation for observation i
-        self._idx_to_future_obs_idx = [None] * max_size
+        self._idx_to_future_obs_idx = [None] * max_replay_buffer_size
 
-    def add_sample(self, observation, action, reward, terminal,
-                   next_observation, **kwargs):
-        raise NotImplementedError("Only use add_path")
+    def add_sample(self, observation, action, reward, terminal, next_observation, **kwargs):
+        raise NotImplementedError('Only use add_path')
 
     def terminate_episode(self):
         pass
@@ -98,11 +113,12 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         return self._size
 
     def add_path(self, path):
-        obs = path["observations"]
-        actions = path["actions"]
-        rewards = path["rewards"]
-        next_obs = path["next_observations"]
-        terminals = path["terminals"]
+        obs = path['observations']
+        actions = path['actions']
+        rewards = path['rewards']
+        next_obs = path['next_observations']
+        terminals = path['terminals']
+        env_infos = path['env_infos']
         path_len = len(rewards)
 
         actions = flatten_n(actions)
@@ -113,16 +129,14 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         obs = preprocess_obs_dict(obs)
         next_obs = preprocess_obs_dict(next_obs)
 
-        if self._top + path_len >= self.max_size:
-            """
+        if self._top + path_len >= self.max_replay_buffer_size:
+            '''
             All of this logic is to handle wrapping the pointer when the
             replay buffer gets full.
-            """
-            num_pre_wrap_steps = self.max_size - self._top
+            '''
+            num_pre_wrap_steps = self.max_replay_buffer_size - self._top
             # numpy slice
-            pre_wrap_buffer_slice = np.s_[
-                                    self._top:self._top + num_pre_wrap_steps, :
-                                    ]
+            pre_wrap_buffer_slice = np.s_[self._top:self._top + num_pre_wrap_steps, :]
             pre_wrap_path_slice = np.s_[0:num_pre_wrap_steps, :]
 
             num_post_wrap_steps = path_len - num_pre_wrap_steps
@@ -133,18 +147,20 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
                 (post_wrap_buffer_slice, post_wrap_path_slice),
             ]:
                 self._actions[buffer_slice] = actions[path_slice]
+                self._rewards[buffer_slice] = rewards[path_slice]
                 self._terminals[buffer_slice] = terminals[path_slice]
                 for key in self.ob_keys_to_save + self.internal_keys:
                     self._obs[key][buffer_slice] = obs[key][path_slice]
                     self._next_obs[key][buffer_slice] = next_obs[key][path_slice]
+                for key in self._env_infos_keys:
+                    self._env_infos[key][buffer_slice] = env_infos[path_slice]
             # Pointers from before the wrap
-            for i in range(self._top, self.max_size):
+            for i in range(self._top, self.max_replay_buffer_size):
                 self._idx_to_future_obs_idx[i] = np.hstack((
                     # Pre-wrap indices
-                    np.arange(i, self.max_size),
+                    np.arange(i, self.max_replay_buffer_size),
                     # Post-wrap indices
-                    np.arange(0, num_post_wrap_steps)
-                ))
+                    np.arange(0, num_post_wrap_steps)))
             # Pointers after the wrap
             for i in range(0, num_post_wrap_steps):
                 self._idx_to_future_obs_idx[i] = np.arange(
@@ -154,16 +170,17 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         else:
             slc = np.s_[self._top:self._top + path_len, :]
             self._actions[slc] = actions
+            self._rewards[slc] = rewards
             self._terminals[slc] = terminals
             for key in self.ob_keys_to_save + self.internal_keys:
                 self._obs[key][slc] = obs[key]
                 self._next_obs[key][slc] = next_obs[key]
+            for key in self._env_infos_keys:
+                self._env_infos[key][slc] = env_infos
             for i in range(self._top, self._top + path_len):
-                self._idx_to_future_obs_idx[i] = np.arange(
-                    i, self._top + path_len
-                )
-        self._top = (self._top + path_len) % self.max_size
-        self._size = min(self._size + path_len, self.max_size)
+                self._idx_to_future_obs_idx[i] = np.arange(i, self._top + path_len)
+        self._top = (self._top + path_len) % self.max_replay_buffer_size
+        self._size = min(self._size + path_len, self.max_replay_buffer_size)
 
     def _sample_indices(self, batch_size):
         return np.random.randint(0, self._size, batch_size)
@@ -177,14 +194,15 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         num_future_goals = batch_size - (num_env_goals + num_rollout_goals)
         new_obs_dict = self._batch_obs_dict(indices)
         new_next_obs_dict = self._batch_next_obs_dict(indices)
+        old_rewards = self._rewards[indices]
+        obstacles = self._env_infos['obstacles'][indices]
 
         if num_env_goals > 0:
             env_goals = self.env.sample_goals(num_env_goals)
             env_goals = preprocess_obs_dict(env_goals)
             last_env_goal_idx = num_rollout_goals + num_env_goals
             resampled_goals[num_rollout_goals:last_env_goal_idx] = (
-                env_goals[self.desired_goal_key]
-            )
+                env_goals[self.desired_goal_key])
             for goal_key in self.goal_keys:
                 new_obs_dict[goal_key][num_rollout_goals:last_env_goal_idx] = \
                     env_goals[goal_key]
@@ -202,8 +220,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
                 future_obs_idxs.append(possible_future_obs_idxs[next_obs_i])
             future_obs_idxs = np.array(future_obs_idxs)
             resampled_goals[-num_future_goals:] = self._next_obs[
-                self.achieved_goal_key
-            ][future_obs_idxs]
+                self.achieved_goal_key][future_obs_idxs]
             for goal_key in self.goal_keys:
                 new_obs_dict[goal_key][-num_future_goals:] = \
                     self._next_obs[goal_key][future_obs_idxs]
@@ -218,35 +235,51 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         resampled_goals = new_next_obs_dict[self.desired_goal_key]
 
         new_actions = self._actions[indices]
-        """
+        '''
         For example, the environments in this repo have batch-wise
         implementations of computing rewards:
 
         https://github.com/vitchyr/multiworld
-        """
+        '''
 
+        new_rewards = old_rewards.copy()
+        new_terminals = self._terminals[indices].copy()
         if hasattr(self.env, 'compute_rewards'):
             new_rewards = self.env.compute_rewards(
                 new_actions,
                 new_next_obs_dict,
             )
-        else:  # Assuming it's a (possibly wrapped) gym GoalEnv
-            new_rewards = np.ones((batch_size, 1))
-            for i in range(batch_size):
-                new_rewards[i] = self.env.compute_reward(
-                    new_next_obs_dict[self.achieved_goal_key][i],
-                    new_next_obs_dict[self.desired_goal_key][i],
-                    None
-                )
-        new_rewards = new_rewards.reshape(-1, 1)
+        elif num_future_goals > 0:  # Assuming it's a (possibly wrapped) gym GoalEnv
+            relabel_indices = slice(batch_size - num_future_goals, batch_size)
+            denorm_states = 0.5 + 0.5 * new_obs_dict[self.achieved_goal_key]
+            denorm_goals = 0.5 + 0.5 * new_next_obs_dict[self.desired_goal_key]
 
+            chunks_relabel_indices = np.array_split(
+                np.arange(batch_size - num_future_goals, batch_size), self.n_workers)
+            chunks = [[
+                denorm_states[idxs], new_actions[idxs], denorm_goals[idxs], obstacles[idxs],
+                self.env.action_range, self.env.distance_goal_success, self.env.dict_reward,
+                old_rewards[idxs]
+            ] for idxs in chunks_relabel_indices]
+            batch_compute_rewards = self.env.batch_compute_rewards
+            results = self.parallel(delayed(batch_compute_rewards)(*chunk) for chunk in chunks)
+            for idxs, result in zip(chunks_relabel_indices, results):
+                new_rewards[idxs], new_terminals[idxs] = result[0], result[1]
+            # new_rewards[relabel_indices], new_terminals[
+            #     relabel_indices], _ = self.env.batch_compute_reward(denorm_states,
+            #                                                         new_actions[relabel_indices],
+            #                                                         denorm_goals,
+            #                                                         obstacles[relabel_indices],
+            #                                                         old_rewards[relabel_indices])
+
+        new_rewards = new_rewards.reshape(-1, 1)
         new_obs = new_obs_dict[self.observation_key]
         new_next_obs = new_next_obs_dict[self.observation_key]
         batch = {
             'observations': new_obs,
             'actions': new_actions,
             'rewards': new_rewards,
-            'terminals': self._terminals[indices],
+            'terminals': new_terminals,
             'next_observations': new_next_obs,
             'resampled_goals': resampled_goals,
             'indices': np.array(indices).reshape(-1, 1),
@@ -254,16 +287,10 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         return batch
 
     def _batch_obs_dict(self, indices):
-        return {
-            key: self._obs[key][indices]
-            for key in self.ob_keys_to_save
-        }
+        return {key: self._obs[key][indices] for key in self.ob_keys_to_save}
 
     def _batch_next_obs_dict(self, indices):
-        return {
-            key: self._next_obs[key][indices]
-            for key in self.ob_keys_to_save
-        }
+        return {key: self._next_obs[key][indices] for key in self.ob_keys_to_save}
 
 
 def flatten_n(xs):
@@ -272,19 +299,16 @@ def flatten_n(xs):
 
 
 def flatten_dict(dicts, keys):
-    """
+    '''
     Turns list of dicts into dict of np arrays
-    """
-    return {
-        key: flatten_n([d[key] for d in dicts])
-        for key in keys
-    }
+    '''
+    return {key: flatten_n([d[key] for d in dicts]) for key in keys}
 
 
 def preprocess_obs_dict(obs_dict):
-    """
+    '''
     Apply internal replay buffer representation changes: save images as bytes
-    """
+    '''
     for obs_key, obs in obs_dict.items():
         if 'image' in obs_key and obs is not None:
             obs_dict[obs_key] = unnormalize_image(obs)
@@ -292,9 +316,9 @@ def preprocess_obs_dict(obs_dict):
 
 
 def postprocess_obs_dict(obs_dict):
-    """
+    '''
     Undo internal replay buffer representation changes: save images as bytes
-    """
+    '''
     for obs_key, obs in obs_dict.items():
         if 'image' in obs_key and obs is not None:
             obs_dict[obs_key] = normalize_image(obs)
