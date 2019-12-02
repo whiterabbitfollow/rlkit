@@ -11,7 +11,6 @@ from rlkit.policies.base import Policy
 from rlkit.torch import pytorch_util as ptu
 from rlkit.torch.core import eval_np
 from rlkit.torch.data_management.normalizer import TorchFixedNormalizer
-from rlkit.torch.modules import LayerNorm
 
 
 def identity(x):
@@ -58,7 +57,7 @@ class Mlp(nn.Module):
             self.fcs.append(fc)
 
             if self.layer_norm:
-                ln = LayerNorm(next_size)
+                ln = nn.GroupNorm(1, next_size)
                 self.__setattr__("layer_norm{}".format(i), ln)
                 self.layer_norms.append(ln)
 
@@ -85,12 +84,16 @@ class Mlp(nn.Module):
         else:
             return output
 
+    def num_params(self):
+        model_parameters = filter(lambda p: p.requires_grad, self.parameters())
+        n_params = sum([torch.prod(torch.tensor(p.size())) for p in model_parameters])
+        return n_params.item()
+
 
 class FlattenMlp(Mlp):
     """
     Flatten inputs along dimension 1 and then pass through MLP.
     """
-
     def forward(self, *inputs, **kwargs):
         flat_inputs = torch.cat(inputs, dim=1)
         return super().forward(flat_inputs, **kwargs)
