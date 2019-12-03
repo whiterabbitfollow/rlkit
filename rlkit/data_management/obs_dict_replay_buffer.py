@@ -189,6 +189,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
 
     def random_batch(self, batch_size):
         indices = self._sample_indices(batch_size)
+        achieved_goals = self._next_obs[self.achieved_goal_key][indices]
         resampled_goals = self._next_obs[self.desired_goal_key][indices]
         # resampled_representation_goals = self._next_obs[self.desired_goal_key][indices]
 
@@ -267,7 +268,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
                     her_previous_reward=old_rewards[relabel_indices],
                     **env_infos)
 
-        # representation_resampled_goals = self.env.represent_goals()
+        representation_resampled_goals = (self.env.represent_goal(achieved_goals, resampled_goals) - 0.5)/0.5
         new_rewards = new_rewards.reshape(-1, 1)
         new_obs = new_obs_dict[self.observation_key]
         new_next_obs = new_next_obs_dict[self.observation_key]
@@ -277,7 +278,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             'rewards': new_rewards,
             'terminals': new_terminals,
             'next_observations': new_next_obs,
-            'resampled_goals': resampled_goals,
+            'representation_resampled_goals': representation_resampled_goals,
             'indices': np.array(indices).reshape(-1, 1),
         }
         return batch

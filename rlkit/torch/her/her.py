@@ -11,7 +11,7 @@ class HERTrainer(TorchTrainer):
     def train_from_torch(self, data):
         obs = data['observations']
         next_obs = data['next_observations']
-        goals = data['resampled_goals']
+        goals = data['representation_resampled_goals']
         data['observations'] = torch.cat((obs, goals), dim=1)
         data['next_observations'] = torch.cat((next_obs, goals), dim=1)
         self._base_trainer.train_from_torch(data)

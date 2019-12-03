@@ -49,7 +49,7 @@ def multitask_rollout(
         next_observations.append(next_o)
         dict_next_obs.append(next_o)
         agent_infos.append(agent_info)
-        if len(env_infos) == 0:
+        if not env_infos:
             for k, v in env_info.items():
                 env_infos[k] = [v]
         else:
@@ -67,7 +67,7 @@ def multitask_rollout(
     if return_dict_obs:
         observations = dict_obs
         next_observations = dict_next_obs
-    for k, v in env_info.items():
+    for k, v in env_infos.items():
         env_infos[k] = np.array(v)
     return dict(
         observations=observations,
