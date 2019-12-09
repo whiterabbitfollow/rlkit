@@ -279,7 +279,6 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
                 her_previous_reward=old_rewards[relabel_indices],
                 **env_infos
             )
-            t = time.time() - t0
 
         rep_obs_goals = self.env.represent_goal(
             new_obs_dict[self.achieved_goal_key], resampled_goals
