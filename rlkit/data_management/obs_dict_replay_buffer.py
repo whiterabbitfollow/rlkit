@@ -1,11 +1,12 @@
 import numpy as np
 from gym.spaces import Dict, Discrete
+from collections import OrderedDict
 
 from rlkit.data_management.replay_buffer import ReplayBuffer
 
 
 class ObsDictRelabelingBuffer(ReplayBuffer):
-    '''
+    """
     Replay buffer for environments whose observations are dictionaries, such as
         - OpenAI Gym GoalEnv environments. https://blog.openai.com/ingredients-for-robotics-research/
         - multiworld MultitaskEnv. https://github.com/vitchyr/multiworld/
@@ -18,21 +19,22 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
        inefficient to save the observations twice, but it makes the code
        *much* easier since you no longer have to worry about termination
        conditions.
-    '''
+    """
+
     def __init__(
-            self,
-            max_replay_buffer_size,
-            env,
-            fraction_goals_rollout_goals=1.0,
-            fraction_goals_env_goals=0.0,
-            internal_keys=None,
-            goal_keys=None,
-            observation_key='observation',
-            desired_goal_key='desired_goal',
-            achieved_goal_key='achieved_goal',
-            robot_state='robot_state',
-            representation_goal_key='representation_goal',
-            env_infos_sizes=None,
+        self,
+        max_replay_buffer_size,
+        env,
+        fraction_goals_rollout_goals=1.0,
+        fraction_goals_env_goals=0.0,
+        internal_keys=None,
+        goal_keys=None,
+        observation_key="observation",
+        desired_goal_key="desired_goal",
+        achieved_goal_key="achieved_goal",
+        robot_state="robot_state",
+        representation_goal_key="representation_goal",
+        env_infos_sizes=None,
     ):
         if internal_keys is None:
             internal_keys = []
@@ -70,24 +72,27 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         self._actions = np.zeros((max_replay_buffer_size, self._action_dim))
         self._rewards = np.zeros((max_replay_buffer_size, 1))
         # self._terminals[i] = a terminal was received at time i
-        self._terminals = np.zeros((max_replay_buffer_size, 1), dtype='uint8')
+        self._terminals = np.zeros((max_replay_buffer_size, 1), dtype="uint8")
         # self._obs[key][i] is the value of observation[key] at time i
         self._obs = {}
         self._next_obs = {}
         self.ob_spaces = self.env.observation_space.spaces
         for key in self.ob_keys_to_save + internal_keys:
-            assert key in self.ob_spaces, \
-                'Key not found in the observation space: {}'.format(key)
+            assert (
+                key in self.ob_spaces
+            ), "Key not found in the observation space: {}".format(key)
             type = np.float64
-            if key.startswith('image'):
+            if key.startswith("image"):
                 type = np.uint8
-            self._obs[key] = np.zeros((max_replay_buffer_size, self.ob_spaces[key].low.size),
-                                      dtype=type)
-            self._next_obs[key] = np.zeros((max_replay_buffer_size, self.ob_spaces[key].low.size),
-                                           dtype=type)
+            self._obs[key] = np.zeros(
+                (max_replay_buffer_size, self.ob_spaces[key].low.size), dtype=type
+            )
+            self._next_obs[key] = np.zeros(
+                (max_replay_buffer_size, self.ob_spaces[key].low.size), dtype=type
+            )
 
         if env_infos_sizes is None:
-            if hasattr(env, 'info_sizes'):
+            if hasattr(env, "info_sizes"):
                 env_infos_sizes = env.info_sizes
             else:
                 env_infos_sizes = dict()
@@ -105,8 +110,10 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         # Then self._next_obs[j] is a valid next observation for observation i
         self._idx_to_future_obs_idx = [None] * max_replay_buffer_size
 
-    def add_sample(self, observation, action, reward, terminal, next_observation, **kwargs):
-        raise NotImplementedError('Only use add_path')
+    def add_sample(
+        self, observation, action, reward, terminal, next_observation, **kwargs
+    ):
+        raise NotImplementedError("Only use add_path")
 
     def terminate_episode(self):
         pass
@@ -115,12 +122,12 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         return self._size
 
     def add_path(self, path):
-        obs = path['observations']
-        actions = path['actions']
-        rewards = path['rewards']
-        next_obs = path['next_observations']
-        terminals = path['terminals']
-        env_infos = path['env_infos']
+        obs = path["observations"]
+        actions = path["actions"]
+        rewards = path["rewards"]
+        next_obs = path["next_observations"]
+        terminals = path["terminals"]
+        env_infos = path["env_infos"]
         path_len = len(rewards)
 
         actions = flatten_n(actions)
@@ -132,13 +139,13 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         next_obs = preprocess_obs_dict(next_obs)
 
         if self._top + path_len >= self.max_replay_buffer_size:
-            '''
+            """
             All of this logic is to handle wrapping the pointer when the
             replay buffer gets full.
-            '''
+            """
             num_pre_wrap_steps = self.max_replay_buffer_size - self._top
             # numpy slice
-            pre_wrap_buffer_slice = np.s_[self._top:self._top + num_pre_wrap_steps, :]
+            pre_wrap_buffer_slice = np.s_[self._top : self._top + num_pre_wrap_steps, :]
             pre_wrap_path_slice = np.s_[0:num_pre_wrap_steps, :]
 
             num_post_wrap_steps = path_len - num_pre_wrap_steps
@@ -158,19 +165,19 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
                     self._env_infos[key][buffer_slice] = env_infos[key][path_slice]
             # Pointers from before the wrap
             for i in range(self._top, self.max_replay_buffer_size):
-                self._idx_to_future_obs_idx[i] = np.hstack((
-                    # Pre-wrap indices
-                    np.arange(i, self.max_replay_buffer_size),
-                    # Post-wrap indices
-                    np.arange(0, num_post_wrap_steps)))
+                self._idx_to_future_obs_idx[i] = np.hstack(
+                    (
+                        # Pre-wrap indices
+                        np.arange(i, self.max_replay_buffer_size),
+                        # Post-wrap indices
+                        np.arange(0, num_post_wrap_steps),
+                    )
+                )
             # Pointers after the wrap
             for i in range(0, num_post_wrap_steps):
-                self._idx_to_future_obs_idx[i] = np.arange(
-                    i,
-                    num_post_wrap_steps,
-                )
+                self._idx_to_future_obs_idx[i] = np.arange(i, num_post_wrap_steps,)
         else:
-            slc = np.s_[self._top:self._top + path_len, :]
+            slc = np.s_[self._top : self._top + path_len, :]
             self._actions[slc] = actions
             self._rewards[slc] = rewards
             self._terminals[slc] = terminals
@@ -189,9 +196,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
 
     def random_batch(self, batch_size):
         indices = self._sample_indices(batch_size)
-        achieved_goals = self._next_obs[self.achieved_goal_key][indices]
         resampled_goals = self._next_obs[self.desired_goal_key][indices]
-        # resampled_representation_goals = self._next_obs[self.desired_goal_key][indices]
 
         num_env_goals = int(batch_size * self.fraction_goals_env_goals)
         num_rollout_goals = int(batch_size * self.fraction_goals_rollout_goals)
@@ -208,14 +213,16 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             env_goals = self.env.sample_goals(num_env_goals)
             env_goals = preprocess_obs_dict(env_goals)
             last_env_goal_idx = num_rollout_goals + num_env_goals
-            resampled_goals[num_rollout_goals:last_env_goal_idx] = (
-                env_goals[self.desired_goal_key])
+            resampled_goals[num_rollout_goals:last_env_goal_idx] = env_goals[
+                self.desired_goal_key
+            ]
             for goal_key in self.goal_keys:
-                new_obs_dict[goal_key][num_rollout_goals:last_env_goal_idx] = \
-                    env_goals[goal_key]
+                new_obs_dict[goal_key][num_rollout_goals:last_env_goal_idx] = env_goals[
+                    goal_key
+                ]
                 new_next_obs_dict[goal_key][
-                num_rollout_goals:last_env_goal_idx] = \
-                    env_goals[goal_key]
+                    num_rollout_goals:last_env_goal_idx
+                ] = env_goals[goal_key]
         if num_future_goals > 0:
             future_obs_idxs = []
             for i in indices[-num_future_goals:]:
@@ -226,13 +233,17 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
                 next_obs_i = int(np.random.randint(0, num_options))
                 future_obs_idxs.append(possible_future_obs_idxs[next_obs_i])
             future_obs_idxs = np.array(future_obs_idxs)
+            # rg[-nfg:] = e_{t+1}[future_indices]
             resampled_goals[-num_future_goals:] = self._next_obs[
-                self.achieved_goal_key][future_obs_idxs]
+                self.achieved_goal_key
+            ][future_obs_idxs]
             for goal_key in self.goal_keys:
-                new_obs_dict[goal_key][-num_future_goals:] = \
-                    self._next_obs[goal_key][future_obs_idxs]
-                new_next_obs_dict[goal_key][-num_future_goals:] = \
-                    self._next_obs[goal_key][future_obs_idxs]
+                new_obs_dict[goal_key][-num_future_goals:] = self._next_obs[goal_key][
+                    future_obs_idxs
+                ]
+                new_next_obs_dict[goal_key][-num_future_goals:] = self._next_obs[
+                    goal_key
+                ][future_obs_idxs]
 
         new_obs_dict[self.desired_goal_key] = resampled_goals
         new_next_obs_dict[self.desired_goal_key] = resampled_goals
@@ -241,45 +252,53 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         # resampled_goals must be postprocessed as well
         resampled_goals = new_next_obs_dict[self.desired_goal_key]
 
-        '''
+        """
         For example, the environments in this repo have batch-wise
         implementations of computing rewards:
 
         https://github.com/vitchyr/multiworld
-        '''
+        """
 
         new_rewards = old_rewards.copy()
         new_terminals = self._terminals[indices].copy()
-        if hasattr(self.env, 'compute_rewards'):
-            new_rewards = self.env.compute_rewards(
-                new_actions,
-                new_next_obs_dict,
-            )
+        if hasattr(self.env, "compute_rewards"):
+            new_rewards = self.env.compute_rewards(new_actions, new_next_obs_dict,)
         elif num_future_goals > 0:  # Assuming it's a (possibly wrapped) gym GoalEnv
             relabel_indices = slice(batch_size - num_future_goals, batch_size)
             for k, v in env_infos.items():
                 env_infos[k] = v[relabel_indices]
 
-            new_rewards[relabel_indices], new_terminals[
-                relabel_indices], _ = self.env.batch_compute_rewards(
-                    state=new_obs_dict['robot_state'][relabel_indices],
-                    action=new_actions[relabel_indices],
-                    goal=resampled_goals[relabel_indices],
-                    her_previous_reward=old_rewards[relabel_indices],
-                    **env_infos)
+            (
+                new_rewards[relabel_indices],
+                new_terminals[relabel_indices],
+                _,
+            ) = self.env.batch_compute_rewards(
+                state=new_obs_dict["robot_state"][relabel_indices],
+                action=new_actions[relabel_indices],
+                goal=resampled_goals[relabel_indices],
+                her_previous_reward=old_rewards[relabel_indices],
+                **env_infos
+            )
+            t = time.time() - t0
 
-        representation_resampled_goals = (self.env.represent_goal(achieved_goals, resampled_goals) - 0.5)/0.5
+        rep_obs_goals = self.env.represent_goal(
+            new_obs_dict[self.achieved_goal_key], resampled_goals
+        )
+        rep_next_obs_goals = self.env.represent_goal(
+            new_next_obs_dict[self.achieved_goal_key], resampled_goals
+        )
         new_rewards = new_rewards.reshape(-1, 1)
         new_obs = new_obs_dict[self.observation_key]
         new_next_obs = new_next_obs_dict[self.observation_key]
         batch = {
-            'observations': new_obs,
-            'actions': new_actions,
-            'rewards': new_rewards,
-            'terminals': new_terminals,
-            'next_observations': new_next_obs,
-            'representation_resampled_goals': representation_resampled_goals,
-            'indices': np.array(indices).reshape(-1, 1),
+            "observations": new_obs,
+            "actions": new_actions,
+            "rewards": new_rewards,
+            "terminals": new_terminals,
+            "next_observations": new_next_obs,
+            "representation_obs_goals": rep_obs_goals,
+            "representation_next_obs_goals": rep_next_obs_goals,
+            "indices": np.array(indices).reshape(-1, 1),
         }
         return batch
 
@@ -289,6 +308,11 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
     def _batch_next_obs_dict(self, indices):
         return {key: self._next_obs[key][indices] for key in self.ob_keys_to_save}
 
+    def get_diagnostics(self):
+        buffer_infos = OrderedDict()
+        buffer_infos["Size"] = self._size
+        return buffer_infos
+
 
 def flatten_n(xs):
     xs = np.asarray(xs)
@@ -296,28 +320,28 @@ def flatten_n(xs):
 
 
 def flatten_dict(dicts, keys):
-    '''
+    """
     Turns list of dicts into dict of np arrays
-    '''
+    """
     return {key: flatten_n([d[key] for d in dicts]) for key in keys}
 
 
 def preprocess_obs_dict(obs_dict):
-    '''
+    """
     Apply internal replay buffer representation changes: save images as bytes
-    '''
+    """
     for obs_key, obs in obs_dict.items():
-        if 'image' in obs_key and obs is not None:
+        if "image" in obs_key and obs is not None:
             obs_dict[obs_key] = unnormalize_image(obs)
     return obs_dict
 
 
 def postprocess_obs_dict(obs_dict):
-    '''
+    """
     Undo internal replay buffer representation changes: save images as bytes
-    '''
+    """
     for obs_key, obs in obs_dict.items():
-        if 'image' in obs_key and obs is not None:
+        if "image" in obs_key and obs is not None:
             obs_dict[obs_key] = normalize_image(obs)
     return obs_dict
 

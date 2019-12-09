@@ -2,16 +2,16 @@ import numpy as np
 
 
 def multitask_rollout(
-        env,
-        agent,
-        max_path_length=np.inf,
-        render=False,
-        render_kwargs=None,
-        observation_key=None,
-        desired_goal_key=None,
-        representation_goal_key=None,
-        get_action_kwargs=None,
-        return_dict_obs=False,
+    env,
+    agent,
+    max_path_length=np.inf,
+    render=False,
+    render_kwargs=None,
+    observation_key=None,
+    desired_goal_key=None,
+    representation_goal_key=None,
+    get_action_kwargs=None,
+    return_dict_obs=False,
 ):
     if render_kwargs is None:
         render_kwargs = {}
@@ -32,12 +32,12 @@ def multitask_rollout(
     if render:
         env.render(**render_kwargs)
     desired_goal = o[desired_goal_key]
-    representation_goal = o[representation_goal_key]
     while path_length < max_path_length:
         dict_obs.append(o)
         if observation_key:
-            o = o[observation_key]
-        new_obs = np.hstack((o, representation_goal))
+            s = o[observation_key]
+        g = o[representation_goal_key]
+        new_obs = np.hstack((s, g))
         a, agent_info = agent.get_action(new_obs, **get_action_kwargs)
         next_o, r, d, env_info = env.step(a)
         if render:
@@ -77,18 +77,13 @@ def multitask_rollout(
         terminals=np.array(terminals).reshape(-1, 1),
         agent_infos=agent_infos,
         env_infos=env_infos,
-        representation_goals=np.repeat(representation_goal[None], path_length, 0),
         desired_goals=np.repeat(desired_goal[None], path_length, 0),
         full_observations=dict_obs,
     )
 
 
 def rollout(
-        env,
-        agent,
-        max_path_length=np.inf,
-        render=False,
-        render_kwargs=None,
+    env, agent, max_path_length=np.inf, render=False, render_kwargs=None,
 ):
     """
     The following value for the following keys will be a 2D array, with the

@@ -7,11 +7,7 @@ from rlkit.data_management.replay_buffer import ReplayBuffer
 
 class SimpleReplayBuffer(ReplayBuffer):
     def __init__(
-            self,
-            max_replay_buffer_size,
-            observation_dim,
-            action_dim,
-            env_info_sizes,
+        self, max_replay_buffer_size, observation_dim, action_dim, env_info_sizes,
     ):
         self._observation_dim = observation_dim
         self._action_dim = action_dim
@@ -26,7 +22,7 @@ class SimpleReplayBuffer(ReplayBuffer):
         # reason about the shape of the data
         self._rewards = np.zeros((max_replay_buffer_size, 1))
         # self._terminals[i] = a terminal was received at time i
-        self._terminals = np.zeros((max_replay_buffer_size, 1), dtype='uint8')
+        self._terminals = np.zeros((max_replay_buffer_size, 1), dtype="uint8")
         # Define self._env_infos[key][i] to be the return value of env_info[key]
         # at time i
         self._env_infos = {}
@@ -38,8 +34,17 @@ class SimpleReplayBuffer(ReplayBuffer):
         self._top = 0
         self._size = 0
 
-    def add_sample(self, observation, action, reward, next_observation, terminal, env_info,
-                   agent_info, **kwargs):
+    def add_sample(
+        self,
+        observation,
+        action,
+        reward,
+        next_observation,
+        terminal,
+        env_info,
+        agent_info,
+        **kwargs
+    ):
         self._observations[self._top] = observation
         self._actions[self._top] = action
         self._rewards[self._top] = reward
@@ -48,7 +53,7 @@ class SimpleReplayBuffer(ReplayBuffer):
 
         for key in self._env_info_keys:
             self._env_infos[key][self._top] = env_info[key]
-        self._agent_infos[self._top] = 'expert' in agent_info
+        self._agent_infos[self._top] = "expert" in agent_info
 
         self._advance()
 
@@ -62,12 +67,14 @@ class SimpleReplayBuffer(ReplayBuffer):
 
     def random_batch(self, batch_size):
         indices = np.random.randint(0, self._size, batch_size)
-        batch = dict(observations=self._observations[indices],
-                     actions=self._actions[indices],
-                     rewards=self._rewards[indices],
-                     terminals=self._terminals[indices],
-                     next_observations=self._next_obs[indices],
-                     agent_infos=self._agent_infos[indices])
+        batch = dict(
+            observations=self._observations[indices],
+            actions=self._actions[indices],
+            rewards=self._rewards[indices],
+            terminals=self._terminals[indices],
+            next_observations=self._next_obs[indices],
+            agent_infos=self._agent_infos[indices],
+        )
         for key in self._env_info_keys:
             assert key not in batch.keys()
             batch[key] = self._env_infos[key][indices]
@@ -84,6 +91,6 @@ class SimpleReplayBuffer(ReplayBuffer):
 
     def get_diagnostics(self):
         buffer_infos = OrderedDict()
-        buffer_infos['Expert_Samples'] = np.sum(self._agent_infos) / self._size
-        buffer_infos['size'] = self._size
+        buffer_infos["Expert_Samples"] = np.sum(self._agent_infos) / self._size
+        buffer_infos["Size"] = self._size
         return buffer_infos

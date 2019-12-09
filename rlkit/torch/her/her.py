@@ -9,11 +9,12 @@ class HERTrainer(TorchTrainer):
         self._base_trainer = base_trainer
 
     def train_from_torch(self, data):
-        obs = data['observations']
-        next_obs = data['next_observations']
-        goals = data['representation_resampled_goals']
-        data['observations'] = torch.cat((obs, goals), dim=1)
-        data['next_observations'] = torch.cat((next_obs, goals), dim=1)
+        obs = data["observations"]
+        next_obs = data["next_observations"]
+        rep_goals = data["representation_obs_goals"]
+        rep_next_goals = data["representation_next_obs_goals"]
+        data["observations"] = torch.cat((obs, rep_goals), dim=1)
+        data["next_observations"] = torch.cat((next_obs, rep_next_goals), dim=1)
         self._base_trainer.train_from_torch(data)
 
     def get_diagnostics(self):
