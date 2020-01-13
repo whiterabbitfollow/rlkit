@@ -34,15 +34,14 @@ class TorchTrainer(Trainer, metaclass=abc.ABCMeta):
     def __init__(self):
         self._num_train_steps = 0
 
-    def train(self, np_batch):
+    # def train(self, np_batch):
+    def train(self, torch_batch):
         self._num_train_steps += 1
-        batch = np_to_pytorch_batch(np_batch)
-        self.train_from_torch(batch)
+        # batch = np_to_pytorch_batch(np_batch)
+        self.train_from_torch(torch_batch)
 
     def get_diagnostics(self):
-        return OrderedDict([
-            ('num train calls', self._num_train_steps),
-        ])
+        return OrderedDict([("num train calls", self._num_train_steps),])
 
     @abc.abstractmethod
     def train_from_torch(self, batch):

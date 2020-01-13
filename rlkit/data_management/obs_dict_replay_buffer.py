@@ -1,8 +1,10 @@
 import numpy as np
+import torch
 from gym.spaces import Dict, Discrete
 from collections import OrderedDict
 
 from rlkit.data_management.replay_buffer import ReplayBuffer
+from rlkit.torch import pytorch_util as ptu
 
 
 class ObsDictRelabelingBuffer(ReplayBuffer):
@@ -69,10 +71,14 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         else:
             self._action_dim = env.action_space.low.size
 
-        self._actions = np.zeros((max_replay_buffer_size, self._action_dim))
-        self._rewards = np.zeros((max_replay_buffer_size, 1))
+        self._actions = torch.zeros(
+            (max_replay_buffer_size, self._action_dim), device=ptu.device
+        )
+        self._rewards = torch.zeros((max_replay_buffer_size, 1), device=ptu.device)
         # self._terminals[i] = a terminal was received at time i
-        self._terminals = np.zeros((max_replay_buffer_size, 1), dtype="uint8")
+        self._terminals = torch.zeros(
+            (max_replay_buffer_size, 1), dtype=torch.uint8, device=ptu.device
+        )
         # self._obs[key][i] is the value of observation[key] at time i
         self._obs = {}
         self._next_obs = {}
@@ -81,14 +87,18 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             assert (
                 key in self.ob_spaces
             ), "Key not found in the observation space: {}".format(key)
-            type = np.float64
+            type = torch.float
             if key.startswith("image"):
-                type = np.uint8
-            self._obs[key] = np.zeros(
-                (max_replay_buffer_size, self.ob_spaces[key].low.size), dtype=type
+                type = torch.uint8
+            self._obs[key] = torch.zeros(
+                (max_replay_buffer_size, self.ob_spaces[key].low.size),
+                dtype=type,
+                device=ptu.device,
             )
-            self._next_obs[key] = np.zeros(
-                (max_replay_buffer_size, self.ob_spaces[key].low.size), dtype=type
+            self._next_obs[key] = torch.zeros(
+                (max_replay_buffer_size, self.ob_spaces[key].low.size),
+                dtype=type,
+                device=ptu.device,
             )
 
         if env_infos_sizes is None:
@@ -98,7 +108,9 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
                 env_infos_sizes = dict()
         self._env_infos = {}
         for key, size in env_infos_sizes.items():
-            self._env_infos[key] = np.zeros((max_replay_buffer_size, size))
+            self._env_infos[key] = torch.zeros(
+                (max_replay_buffer_size, size), device=ptu.device
+            )
         self._env_infos_keys = env_infos_sizes.keys()
 
         self._top = 0
@@ -130,13 +142,18 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         env_infos = path["env_infos"]
         path_len = len(rewards)
 
-        actions = flatten_n(actions)
+        actions = flatten_torch(actions)
         if isinstance(self.env.action_space, Discrete):
-            actions = np.eye(self._action_dim)[actions].reshape((-1, self._action_dim))
+            actions = torch.eye(self._action_dim)[actions].reshape(
+                (-1, self._action_dim)
+            )
         obs = flatten_dict(obs, self.ob_keys_to_save + self.internal_keys)
         next_obs = flatten_dict(next_obs, self.ob_keys_to_save + self.internal_keys)
         obs = preprocess_obs_dict(obs)
         next_obs = preprocess_obs_dict(next_obs)
+        rewards = torchify(rewards)
+        terminals = torchify(terminals)
+        env_infos = torchify(env_infos)
 
         if self._top + path_len >= self.max_replay_buffer_size:
             """
@@ -165,13 +182,14 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
                     self._env_infos[key][buffer_slice] = env_infos[key][path_slice]
             # Pointers from before the wrap
             for i in range(self._top, self.max_replay_buffer_size):
-                self._idx_to_future_obs_idx[i] = np.hstack(
+                self._idx_to_future_obs_idx[i] = torch.cat(
                     (
                         # Pre-wrap indices
                         np.arange(i, self.max_replay_buffer_size),
                         # Post-wrap indices
                         np.arange(0, num_post_wrap_steps),
-                    )
+                    ),
+                    axis=1,
                 )
             # Pointers after the wrap
             for i in range(0, num_post_wrap_steps):
@@ -259,8 +277,8 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         https://github.com/vitchyr/multiworld
         """
 
-        new_rewards = old_rewards.copy()
-        new_terminals = self._terminals[indices].copy()
+        new_rewards = old_rewards.clone()
+        new_terminals = self._terminals[indices].clone()
         # if hasattr(self.env, "compute_rewards"):
         #     new_rewards = self.env.compute_rewards(new_actions, new_next_obs_dict,)
         if num_future_goals > 0:  # Assuming it's a (possibly wrapped) gym GoalEnv
@@ -315,11 +333,24 @@ def flatten_n(xs):
     return xs.reshape((xs.shape[0], -1))
 
 
+def flatten_torch(xs):
+    return ptu.from_numpy(flatten_n(xs))
+
+
+def torchify(x):
+    if isinstance(x, dict):
+        for k, v in x.items():
+            x[k] = ptu.from_numpy(v)
+    else:
+        x = ptu.from_numpy(x)
+    return x
+
+
 def flatten_dict(dicts, keys):
     """
     Turns list of dicts into dict of np arrays
     """
-    return {key: flatten_n([d[key] for d in dicts]) for key in keys}
+    return {key: flatten_torch([d[key] for d in dicts]) for key in keys}
 
 
 def preprocess_obs_dict(obs_dict):
