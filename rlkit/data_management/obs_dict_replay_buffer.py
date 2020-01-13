@@ -261,21 +261,18 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
 
         new_rewards = old_rewards.copy()
         new_terminals = self._terminals[indices].copy()
-        if hasattr(self.env, "compute_rewards"):
-            new_rewards = self.env.compute_rewards(new_actions, new_next_obs_dict,)
-        elif num_future_goals > 0:  # Assuming it's a (possibly wrapped) gym GoalEnv
+        # if hasattr(self.env, "compute_rewards"):
+        #     new_rewards = self.env.compute_rewards(new_actions, new_next_obs_dict,)
+        if num_future_goals > 0:  # Assuming it's a (possibly wrapped) gym GoalEnv
             relabel_indices = slice(batch_size - num_future_goals, batch_size)
             for k, v in env_infos.items():
                 env_infos[k] = v[relabel_indices]
-
             (
                 new_rewards[relabel_indices],
                 new_terminals[relabel_indices],
-                _,
             ) = self.env.batch_compute_rewards(
-                state=new_obs_dict["robot_state"][relabel_indices],
-                action=new_actions[relabel_indices],
-                goal=resampled_goals[relabel_indices],
+                batch_next_q=new_next_obs_dict["robot_state"][relabel_indices],
+                batch_goal=resampled_goals[relabel_indices],
                 her_previous_reward=old_rewards[relabel_indices],
                 **env_infos
             )
