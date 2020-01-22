@@ -69,14 +69,10 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         else:
             self._action_dim = env.action_space.low.size
 
-        self._actions = torch.zeros(
-            (max_replay_buffer_size, self._action_dim), device=ptu.device
-        )
-        self._rewards = torch.zeros((max_replay_buffer_size, 1), device=ptu.device)
+        self._actions = ptu.zeros((max_replay_buffer_size, self._action_dim))
+        self._rewards = ptu.zeros((max_replay_buffer_size, 1))
         # self._terminals[i] = a terminal was received at time i
-        self._terminals = torch.zeros(
-            (max_replay_buffer_size, 1), dtype=torch.uint8, device=ptu.device
-        )
+        self._terminals = ptu.zeros((max_replay_buffer_size, 1), dtype=torch.uint8)
         # self._obs[key][i] is the value of observation[key] at time i
         self._obs = {}
         self._next_obs = {}
@@ -88,17 +84,14 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             type = torch.float
             if key.startswith("image"):
                 type = torch.uint8
-            self._obs[key] = torch.zeros(
-                (max_replay_buffer_size, self.ob_spaces[key].low.size),
-                dtype=type,
-                device=ptu.device,
+            self._obs[key] = ptu.zeros(
+                (max_replay_buffer_size, self.ob_spaces[key].low.size), dtype=type
             )
-            self._next_obs[key] = torch.zeros(
-                (max_replay_buffer_size, self.ob_spaces[key].low.size),
-                dtype=type,
-                device=ptu.device,
+            self._next_obs[key] = ptu.zeros(
+                (max_replay_buffer_size, self.ob_spaces[key].low.size), dtype=type
             )
 
+        self.env_infos_sizes = env_infos_sizes
         if env_infos_sizes is None:
             if hasattr(env, "info_sizes"):
                 env_infos_sizes = env.info_sizes
@@ -106,15 +99,11 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
                 env_infos_sizes = dict()
         self._env_infos = {}
         for key, size in env_infos_sizes.items():
-            self._env_infos[key] = torch.zeros(
-                (max_replay_buffer_size, size), device=ptu.device
-            )
+            self._env_infos[key] = ptu.zeros((max_replay_buffer_size, size))
         self._env_infos_keys = env_infos_sizes.keys()
 
         self._top = 0
         self._size = 0
-
-        self.n_workers = 1
 
         # Let j be any index in self._idx_to_future_obs_idx[i]
         # Then self._next_obs[j] is a valid next observation for observation i
@@ -149,9 +138,9 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         next_obs = flatten_dict(next_obs, self.ob_keys_to_save + self.internal_keys)
         obs = preprocess_obs_dict(obs)
         next_obs = preprocess_obs_dict(next_obs)
-        rewards = torchify(rewards)
-        terminals = torchify(terminals)
-        env_infos = torchify(env_infos)
+        rewards = ptu.from_numpy(rewards)
+        terminals = ptu.from_numpy(terminals)
+        env_infos = from_numpy_dict(env_infos)
 
         if self._top + path_len >= self.max_replay_buffer_size:
             """
@@ -183,15 +172,14 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
                 self._idx_to_future_obs_idx[i] = torch.cat(
                     (
                         # Pre-wrap indices
-                        np.arange(i, self.max_replay_buffer_size),
+                        torch.arange(i, self.max_replay_buffer_size),
                         # Post-wrap indices
-                        np.arange(0, num_post_wrap_steps),
-                    ),
-                    axis=1,
+                        torch.arange(0, num_post_wrap_steps),
+                    )
                 )
             # Pointers after the wrap
             for i in range(0, num_post_wrap_steps):
-                self._idx_to_future_obs_idx[i] = np.arange(i, num_post_wrap_steps,)
+                self._idx_to_future_obs_idx[i] = torch.arange(i, num_post_wrap_steps,)
         else:
             slc = np.s_[self._top : self._top + path_len, :]
             self._actions[slc] = actions
@@ -203,7 +191,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             for key in self._env_infos_keys:
                 self._env_infos[key][slc] = env_infos[key]
             for i in range(self._top, self._top + path_len):
-                self._idx_to_future_obs_idx[i] = np.arange(i, self._top + path_len)
+                self._idx_to_future_obs_idx[i] = torch.arange(i, self._top + path_len)
         self._top = (self._top + path_len) % self.max_replay_buffer_size
         self._size = min(self._size + path_len, self.max_replay_buffer_size)
 
@@ -338,12 +326,9 @@ def flatten_torch(xs):
     return ptu.from_numpy(flatten_n(xs))
 
 
-def torchify(x):
-    if isinstance(x, dict):
-        for k, v in x.items():
-            x[k] = ptu.from_numpy(v)
-    else:
-        x = ptu.from_numpy(x)
+def from_numpy_dict(x):
+    for k, v in x.items():
+        x[k] = ptu.from_numpy(v)
     return x
 
 
