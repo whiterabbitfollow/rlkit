@@ -34,7 +34,6 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         observation_key="observation",
         desired_goal_key="desired_goal",
         achieved_goal_key="achieved_goal",
-        robot_state="robot_state",
         representation_goal_key="representation_goal",
         env_infos_sizes=None,
     ):
@@ -59,7 +58,6 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             observation_key,
             desired_goal_key,
             achieved_goal_key,
-            robot_state,
             representation_goal_key,
         ]
         self.observation_key = observation_key
@@ -241,6 +239,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
                 new_next_obs_dict[goal_key][
                     num_rollout_goals:last_env_goal_idx
                 ] = env_goals[goal_key]
+        # sampling future goals somehow takes time
         if num_future_goals > 0:
             future_obs_idxs = []
             for i in indices[-num_future_goals:]:
@@ -289,7 +288,9 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
                 new_rewards[relabel_indices],
                 new_terminals[relabel_indices],
             ) = self.env.batch_compute_rewards(
-                batch_next_q=new_next_obs_dict["robot_state"][relabel_indices],
+                batch_next_achieved_goal=new_next_obs_dict["achieved_goal"][
+                    relabel_indices
+                ],
                 batch_goal=resampled_goals[relabel_indices],
                 her_previous_reward=old_rewards[relabel_indices],
                 **env_infos
