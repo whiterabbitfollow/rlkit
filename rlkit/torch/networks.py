@@ -19,18 +19,18 @@ def identity(x):
 
 class Mlp(nn.Module):
     def __init__(
-            self,
-            hidden_sizes,
-            output_size,
-            input_size,
-            init_w=3e-3,
-            hidden_activation=F.relu,
-            output_activation=identity,
-            hidden_init=ptu.fanin_init,
-            b_init_value=0.1,
-            residual_connections=False,
-            layer_norm=False,
-            layer_norm_kwargs=None,
+        self,
+        hidden_sizes,
+        output_size,
+        input_size,
+        init_w=3e-3,
+        hidden_activation=F.relu,
+        output_activation=identity,
+        hidden_init=ptu.fanin_init,
+        b_init_value=0.1,
+        residual_connections=False,
+        layer_norm=False,
+        layer_norm_kwargs=None,
     ):
         super().__init__()
 
@@ -65,18 +65,24 @@ class Mlp(nn.Module):
         self.last_fc.weight.data.uniform_(-init_w, init_w)
         self.last_fc.bias.data.uniform_(-init_w, init_w)
 
-    def forward(self, input, return_preactivations=False):
+    def forward(self, input, return_preactivations=False, return_features=False):
         h = input
         for i, fc in enumerate(self.fcs):
-            residual = h
-            out = fc(h)
-            if self.layer_norm and i < len(self.fcs) - 1:
-                out = self.layer_norms[i](out)
-            out = self.hidden_activation(out)
-            if self.residual_connections and i > 0 and i < len(self.fcs) - 1:
-                h = out + residual
-            else:
-                h = out
+            # residual = h
+            # out = fc(h)
+            # if self.layer_norm and i < len(self.fcs) - 1:
+            #     out = self.layer_norms[i](out)
+            # out = self.hidden_activation(out)
+            # h = out
+            # if self.residual_connections and i > 0 and i < len(self.fcs) - 1:
+            #     h = out + residual
+            # else:
+            #     h = out
+            h = fc(h)
+            h = self.hidden_activation(h)
+
+        if return_features:
+            return h
         preactivation = self.last_fc(h)
         output = self.output_activation(preactivation)
         if return_preactivations:
@@ -94,6 +100,7 @@ class FlattenMlp(Mlp):
     """
     Flatten inputs along dimension 1 and then pass through MLP.
     """
+
     def forward(self, *inputs, **kwargs):
         flat_inputs = torch.cat(inputs, dim=1)
         return super().forward(flat_inputs, **kwargs)
@@ -103,6 +110,7 @@ class MlpPolicy(Mlp, Policy):
     """
     A simpler interface for creating policies.
     """
+
     def __init__(self, *args, obs_normalizer: TorchFixedNormalizer = None, **kwargs):
         super().__init__(*args, **kwargs)
         self.obs_normalizer = obs_normalizer
@@ -124,5 +132,6 @@ class TanhMlpPolicy(MlpPolicy):
     """
     A helper class since most policies have a tanh output activation.
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, output_activation=torch.tanh, **kwargs)

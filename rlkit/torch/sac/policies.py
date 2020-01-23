@@ -75,15 +75,7 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
         :param deterministic: If True, do not sample
         :param return_log_prob: If True, return a sample and its log probability
         """
-        h = obs
-        for i, fc in enumerate(self.fcs):
-            residual = h
-            out = fc(h)
-            out = self.hidden_activation(out)
-            if self.residual_connections and i > 0 and i < len(self.fcs) - 1:
-                h = out + residual
-            else:
-                h = out
+        h = super().forward(obs, return_features=True)
         mean = self.last_fc(h)
         if self.std is None:
             log_std = self.last_fc_log_std(h)
