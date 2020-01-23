@@ -75,15 +75,10 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 gt.stamp("data storing", unique=False)
 
                 self.training_mode(True)
-                import time
 
                 for _ in tqdm(range(self.num_trains_per_train_loop), ncols=80):
-                    t0 = time.time()
                     train_data = self.replay_buffer.random_batch(self.batch_size)
-                    print("random batch {}".format((time.time() - t0) * 10 ** 4))
-                    t0 = time.time()
                     self.trainer.train(train_data)
-                    print("train {}".format((time.time() - t0) * 10 ** 4))
                 gt.stamp("training", unique=False)
                 self.training_mode(False)
 

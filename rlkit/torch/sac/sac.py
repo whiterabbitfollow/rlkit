@@ -33,6 +33,9 @@ class SACTrainer(TorchTrainer):
         alpha=1,
         use_automatic_entropy_tuning=True,
         target_entropy=None,
+        policy_optimizer=None,
+        qf1_optimizer=None,
+        qf2_optimizer=None,
     ):
         super().__init__()
         self.env = env
@@ -60,9 +63,14 @@ class SACTrainer(TorchTrainer):
 
         self.qf_criterion = nn.MSELoss()
 
-        self.policy_optimizer = optimizer_class(self.policy.parameters(), lr=policy_lr,)
-        self.qf1_optimizer = optimizer_class(self.qf1.parameters(), lr=qf_lr,)
-        self.qf2_optimizer = optimizer_class(self.qf2.parameters(), lr=qf_lr,)
+        if policy_optimizer is None:
+            self.policy_optimizer = optimizer_class(
+                self.policy.parameters(), lr=policy_lr,
+            )
+        if qf1_optimizer is None:
+            self.qf1_optimizer = optimizer_class(self.qf1.parameters(), lr=qf_lr,)
+        if qf2_optimizer is None:
+            self.qf2_optimizer = optimizer_class(self.qf2.parameters(), lr=qf_lr,)
 
         self.discount = discount
         self.reward_scale = reward_scale
@@ -76,10 +84,6 @@ class SACTrainer(TorchTrainer):
         obs = batch["observations"]
         actions = batch["actions"]
         next_obs = batch["next_observations"]
-        if "weights" in batch:
-            weights = batch["weights"]
-        else:
-            weights = torch.ones((obs.shape[0], 1), device=obs.device)
         """
         Policy and Alpha Loss
         """
@@ -119,17 +123,14 @@ class SACTrainer(TorchTrainer):
             - alpha * new_log_pi
         )
 
-        if weights is None:
-            weights = torch.ones((batch.shape[0], 1))
-
         q_target = (
             self.reward_scale * rewards
             + (1.0 - terminals) * self.discount * target_q_values
         )
         qf1_batch_loss = self.qf_criterion(q1_pred, q_target.detach())
         qf2_batch_loss = self.qf_criterion(q2_pred, q_target.detach())
-        qf1_loss = (weights * qf1_batch_loss).mean()
-        qf2_loss = (weights * qf2_batch_loss).mean()
+        qf1_loss = qf1_batch_loss
+        qf2_loss = qf2_batch_loss
         """
         Update networks
         """
@@ -150,10 +151,10 @@ class SACTrainer(TorchTrainer):
         if self._n_train_steps_total % self.target_update_period == 0:
             ptu.soft_update_from_to(self.qf1, self.target_qf1, self.soft_target_tau)
             ptu.soft_update_from_to(self.qf2, self.target_qf2, self.soft_target_tau)
-        """
-        TD errors saving for prioritized replay buffer
-        """
-        self.qf_batch_loss = ptu.get_numpy(torch.max(qf1_batch_loss, qf2_batch_loss))
+        # """
+        # TD errors saving for prioritized replay buffer
+        # """
+        # self.qf_batch_loss = ptu.get_numpy(torch.max(qf1_batch_loss, qf2_batch_loss))
         """
         Save some statistics for eval
         """
@@ -216,4 +217,7 @@ class SACTrainer(TorchTrainer):
             qf2=self.qf2,
             target_qf1=self.qf1,
             target_qf2=self.qf2,
+            policy_optimizer=self.policy_optimizer,
+            qf1_optimizer=self.qf1_optimizer,
+            qf2_optimizer=self.qf2_optimizer,
         )
