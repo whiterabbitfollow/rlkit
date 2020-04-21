@@ -1,13 +1,12 @@
 import abc
 from collections import OrderedDict
-
 from typing import Iterable
-from torch import nn as nn
 
 from rlkit.core.batch_rl_algorithm import BatchRLAlgorithm
 from rlkit.core.online_rl_algorithm import OnlineRLAlgorithm
 from rlkit.core.trainer import Trainer
 from rlkit.torch.core import np_to_pytorch_batch
+from torch import nn as nn
 
 
 class TorchOnlineRLAlgorithm(OnlineRLAlgorithm):
@@ -34,10 +33,9 @@ class TorchTrainer(Trainer, metaclass=abc.ABCMeta):
     def __init__(self):
         self._num_train_steps = 0
 
-    # def train(self, np_batch):
-    def train(self, torch_batch):
+    def train(self, np_batch):
         self._num_train_steps += 1
-        # batch = np_to_pytorch_batch(np_batch)
+        torch_batch = np_to_pytorch_batch(np_batch)
         self.train_from_torch(torch_batch)
 
     def get_diagnostics(self):
