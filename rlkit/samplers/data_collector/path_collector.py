@@ -1,18 +1,18 @@
-from collections import deque, OrderedDict
+from collections import OrderedDict, deque
 
 from rlkit.core.eval_util import create_stats_ordered_dict
-from rlkit.samplers.rollout_functions import rollout, multitask_rollout
 from rlkit.samplers.data_collector.base import PathCollector
+from rlkit.samplers.rollout_functions import multitask_rollout, rollout
 
 
 class MdpPathCollector(PathCollector):
     def __init__(
-            self,
-            env,
-            policy,
-            max_num_epoch_paths_saved=None,
-            render=False,
-            render_kwargs=None,
+        self,
+        env,
+        policy,
+        max_num_epoch_paths_saved=None,
+        render=False,
+        render_kwargs=None,
     ):
         if render_kwargs is None:
             render_kwargs = {}
@@ -27,26 +27,23 @@ class MdpPathCollector(PathCollector):
         self._num_paths_total = 0
 
     def collect_new_paths(
-            self,
-            max_path_length,
-            num_steps,
-            discard_incomplete_paths,
+        self, max_path_length, num_steps, discard_incomplete_paths,
     ):
         paths = []
         num_steps_collected = 0
         while num_steps_collected < num_steps:
             max_path_length_this_loop = min(  # Do not go over num_steps
-                max_path_length,
-                num_steps - num_steps_collected,
+                max_path_length, num_steps - num_steps_collected,
             )
             path = rollout(
-                self._env,
-                self._policy,
-                max_path_length=max_path_length_this_loop,
+                self._env, self._policy, max_path_length=max_path_length_this_loop,
             )
-            path_len = len(path['actions'])
-            if (path_len != max_path_length and not path['terminals'][-1]
-                    and discard_incomplete_paths):
+            path_len = len(path["actions"])
+            if (
+                path_len != max_path_length
+                and not path["terminals"][-1]
+                and discard_incomplete_paths
+            ):
                 break
             num_steps_collected += path_len
             paths.append(path)
@@ -62,18 +59,20 @@ class MdpPathCollector(PathCollector):
         self._epoch_paths = deque(maxlen=self._max_num_epoch_paths_saved)
 
     def get_diagnostics(self):
-        path_lens = [len(path['actions']) for path in self._epoch_paths]
-        stats = OrderedDict([
-            ('num steps total', self._num_steps_total),
-            ('num paths total', self._num_paths_total),
-        ])
-        stats.update(create_stats_ordered_dict(
-            "path length",
-            path_lens,
-            always_show_all_stats=True,
-        ))
-        success = [path['rewards'][-1][0] > 0 for path in self._epoch_paths]
-        stats['SuccessRate'] = sum(success) / len(success)
+        path_lens = [len(path["actions"]) for path in self._epoch_paths]
+        stats = OrderedDict(
+            [
+                ("num steps total", self._num_steps_total),
+                ("num paths total", self._num_paths_total),
+            ]
+        )
+        stats.update(
+            create_stats_ordered_dict(
+                "path length", path_lens, always_show_all_stats=True,
+            )
+        )
+        success = [path["rewards"][-1][0] > 0 for path in self._epoch_paths]
+        stats["SuccessRate"] = sum(success) / len(success)
         return stats
 
     def get_snapshot(self):
@@ -85,15 +84,15 @@ class MdpPathCollector(PathCollector):
 
 class GoalConditionedPathCollector(PathCollector):
     def __init__(
-            self,
-            env,
-            policy,
-            max_num_epoch_paths_saved=None,
-            render=False,
-            render_kwargs=None,
-            observation_key='observation',
-            desired_goal_key='desired_goal',
-            representation_goal_key='representation_goal',
+        self,
+        env,
+        policy,
+        max_num_epoch_paths_saved=None,
+        render=False,
+        render_kwargs=None,
+        observation_key="observation",
+        desired_goal_key="desired_goal",
+        representation_goal_key="representation_goal",
     ):
         if render_kwargs is None:
             render_kwargs = {}
@@ -111,17 +110,13 @@ class GoalConditionedPathCollector(PathCollector):
         self._num_paths_total = 0
 
     def collect_new_paths(
-            self,
-            max_path_length,
-            num_steps,
-            discard_incomplete_paths,
+        self, max_path_length, num_steps, discard_incomplete_paths,
     ):
         paths = []
         num_steps_collected = 0
         while num_steps_collected < num_steps:
             max_path_length_this_loop = min(  # Do not go over num_steps
-                max_path_length,
-                num_steps - num_steps_collected,
+                max_path_length, num_steps - num_steps_collected,
             )
             path = multitask_rollout(
                 self._env,
@@ -134,9 +129,12 @@ class GoalConditionedPathCollector(PathCollector):
                 representation_goal_key=self._representation_goal_key,
                 return_dict_obs=True,
             )
-            path_len = len(path['actions'])
-            if (path_len != max_path_length and not path['terminals'][-1]
-                    and discard_incomplete_paths):
+            path_len = len(path["actions"])
+            if (
+                path_len != max_path_length
+                and not path["terminals"][-1]
+                and discard_incomplete_paths
+            ):
                 break
             num_steps_collected += path_len
             paths.append(path)
@@ -152,18 +150,20 @@ class GoalConditionedPathCollector(PathCollector):
         self._epoch_paths = deque(maxlen=self._max_num_epoch_paths_saved)
 
     def get_diagnostics(self):
-        path_lens = [len(path['actions']) for path in self._epoch_paths]
-        stats = OrderedDict([
-            ('num steps total', self._num_steps_total),
-            ('num paths total', self._num_paths_total),
-        ])
-        stats.update(create_stats_ordered_dict(
-            "path length",
-            path_lens,
-            always_show_all_stats=True,
-        ))
-        success = [path['rewards'][-1][0] > 0 for path in self._epoch_paths]
-        stats['SuccessRate'] = sum(success) / len(success)
+        path_lens = [len(path["actions"]) for path in self._epoch_paths]
+        stats = OrderedDict(
+            [
+                ("num steps total", self._num_steps_total),
+                ("num paths total", self._num_paths_total),
+            ]
+        )
+        stats.update(
+            create_stats_ordered_dict(
+                "path length", path_lens, always_show_all_stats=True,
+            )
+        )
+        success = [path["env_infos"]["success"][-1] for path in self._epoch_paths]
+        stats["SuccessRate"] = sum(success) / len(success)
         return stats
 
     def get_snapshot(self):

@@ -1,12 +1,11 @@
 import abc
 from collections import OrderedDict
-from torch.utils.tensorboard import SummaryWriter
 
 import gtimer as gt
-
-from rlkit.core import logger, eval_util
+from rlkit.core import eval_util, logger
 from rlkit.data_management.replay_buffer import ReplayBuffer
 from rlkit.samplers.data_collector import DataCollector
+from torch.utils.tensorboard import SummaryWriter
 
 
 def _get_epoch_timings():

@@ -1,15 +1,14 @@
 from collections import OrderedDict
 
 import numpy as np
-import torch
-import torch.optim as optim
-from torch import nn as nn
-
-import rlkit.torch.pytorch_util as ptu
-from rlkit.core.eval_util import create_stats_ordered_dict
-from rlkit.torch.torch_rl_algorithm import TorchTrainer
 
 import gtimer as gt
+import rlkit.torch.pytorch_util as ptu
+import torch
+import torch.optim as optim
+from rlkit.core.eval_util import create_stats_ordered_dict
+from rlkit.torch.torch_rl_algorithm import TorchTrainer
+from torch import nn as nn
 
 
 class SACTrainer(TorchTrainer):
