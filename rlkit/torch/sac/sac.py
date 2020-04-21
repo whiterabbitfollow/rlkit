@@ -28,7 +28,6 @@ class SACTrainer(TorchTrainer):
         optimizer_class=optim.Adam,
         soft_target_tau=1e-2,
         target_update_period=1,
-        plotter=None,
         render_eval_paths=False,
         alpha=1,
         use_automatic_entropy_tuning=True,
@@ -58,7 +57,6 @@ class SACTrainer(TorchTrainer):
             self.log_alpha = ptu.zeros(1, requires_grad=True)
             self.alpha_optimizer = optimizer_class([self.log_alpha], lr=policy_lr,)
 
-        self.plotter = plotter
         self.render_eval_paths = render_eval_paths
 
         self.qf_criterion = nn.MSELoss()
