@@ -29,20 +29,25 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
     If return_log_prob is False (default), log_prob = None
         This is done because computing the log_prob can be a bit expensive.
     """
-    def __init__(self,
-                 hidden_sizes,
-                 obs_dim,
-                 action_dim,
-                 std=None,
-                 init_w=1e-3,
-                 residual_connections=False,
-                 **kwargs):
-        super().__init__(hidden_sizes,
-                         input_size=obs_dim,
-                         output_size=action_dim,
-                         init_w=init_w,
-                         residual_connections=residual_connections,
-                         **kwargs)
+
+    def __init__(
+        self,
+        hidden_sizes,
+        obs_dim,
+        action_dim,
+        std=None,
+        init_w=1e-3,
+        residual_connections=False,
+        **kwargs
+    ):
+        super().__init__(
+            hidden_sizes,
+            input_size=obs_dim,
+            output_size=action_dim,
+            init_w=init_w,
+            residual_connections=residual_connections,
+            **kwargs
+        )
         self.log_std = None
         self.std = std
         if std is None:
@@ -64,11 +69,7 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
         return eval_np(self, obs_np, deterministic=deterministic)[0]
 
     def forward(
-            self,
-            obs,
-            reparameterize=True,
-            deterministic=False,
-            return_log_prob=False,
+        self, obs, reparameterize=True, deterministic=False, return_log_prob=False,
     ):
         """
         :param obs: Observation
@@ -95,9 +96,13 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
             tanh_normal = TanhNormal(mean, std)
             if return_log_prob:
                 if reparameterize is True:
-                    action, pre_tanh_value = tanh_normal.rsample(return_pretanh_value=True)
+                    action, pre_tanh_value = tanh_normal.rsample(
+                        return_pretanh_value=True
+                    )
                 else:
-                    action, pre_tanh_value = tanh_normal.sample(return_pretanh_value=True)
+                    action, pre_tanh_value = tanh_normal.sample(
+                        return_pretanh_value=True
+                    )
                 log_prob = tanh_normal.log_prob(action, pre_tanh_value=pre_tanh_value)
                 log_prob = log_prob.sum(dim=1, keepdim=True)
             else:

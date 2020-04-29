@@ -68,18 +68,16 @@ class Mlp(nn.Module):
     def forward(self, input, return_preactivations=False, return_features=False):
         h = input
         for i, fc in enumerate(self.fcs):
-            # residual = h
-            # out = fc(h)
+            identity = h
+            out = fc(h)
             # if self.layer_norm and i < len(self.fcs) - 1:
             #     out = self.layer_norms[i](out)
-            # out = self.hidden_activation(out)
-            # h = out
-            # if self.residual_connections and i > 0 and i < len(self.fcs) - 1:
-            #     h = out + residual
-            # else:
-            #     h = out
-            h = fc(h)
-            h = self.hidden_activation(h)
+            if self.residual_connections and i > 0:
+                out += identity
+            out = self.hidden_activation(out)
+            h = out
+            # h = fc(h)
+            # h = self.hidden_activation(h)
 
         if return_features:
             return h
