@@ -6,6 +6,7 @@ import pickle
 import random
 import sys
 import time
+import torch
 from collections import namedtuple
 
 import __main__ as main
@@ -302,9 +303,11 @@ def set_seed(seed):
     :param seed:
     :return: None
     """
-    seed = int(seed)
-    random.seed(seed)
-    np.random.seed(seed)
+    if seed is not None:
+        seed = int(seed)
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
 
 
 def reset_execution_environment():
