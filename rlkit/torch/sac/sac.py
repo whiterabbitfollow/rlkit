@@ -133,14 +133,20 @@ class SACTrainer(TorchTrainer):
         """
         self.qf1_optimizer.zero_grad()
         qf1_loss.backward()
+        norm_qf1 = nn.utils.clip_grad_norm_(self.qf1.parameters(), 10)
+        # print("\nqf1", norm_qf1)
         self.qf1_optimizer.step()
 
         self.qf2_optimizer.zero_grad()
         qf2_loss.backward()
+        norm_qf2 = nn.utils.clip_grad_norm_(self.qf2.parameters(), 10)
+        # print("qf2", norm_qf2)
         self.qf2_optimizer.step()
 
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
+        norm_policy = nn.utils.clip_grad_norm_(self.policy.parameters(), 10)
+        # print("policy", norm_policy)
         self.policy_optimizer.step()
         """
         Soft Updates
@@ -166,6 +172,15 @@ class SACTrainer(TorchTrainer):
             self.eval_statistics["QF1 Loss"] = np.mean(ptu.get_numpy(qf1_batch_loss))
             self.eval_statistics["QF2 Loss"] = np.mean(ptu.get_numpy(qf2_batch_loss))
             self.eval_statistics["Policy Loss"] = np.mean(ptu.get_numpy(policy_loss))
+            self.eval_statistics["QF1 Grad Norm"] = norm_qf1
+            self.eval_statistics["QF2 Grad Norm"] = norm_qf2
+            self.eval_statistics["Policy Grad Norm"] = norm_policy
+            self.eval_statistics.update(
+                create_stats_ordered_dict("Q1 Predictions", ptu.get_numpy(q1_pred),)
+            )
+            self.eval_statistics.update(
+                create_stats_ordered_dict("Q2 Predictions", ptu.get_numpy(q2_pred),)
+            )
             self.eval_statistics.update(
                 create_stats_ordered_dict("Q1 Predictions", ptu.get_numpy(q1_pred),)
             )
