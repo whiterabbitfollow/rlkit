@@ -2,7 +2,8 @@ from collections import OrderedDict, deque
 
 from rlkit.core.eval_util import create_stats_ordered_dict
 from rlkit.samplers.data_collector.base import PathCollector
-from rlkit.samplers.rollout_functions import multitask_rollout, rollout
+from rlkit.samplers.rollout_functions import (multiagent_multitask_rollout,
+                                              multitask_rollout, rollout)
 
 
 class MdpPathCollector(PathCollector):
@@ -173,3 +174,63 @@ class GoalConditionedPathCollector(PathCollector):
             observation_key=self._observation_key,
             desired_goal_key=self._desired_goal_key,
         )
+
+
+class MultiAgentGoalConditionedPathCollector(GoalConditionedPathCollector):
+    def __init__(
+        self,
+        env,
+        policy,
+        max_num_epoch_paths_saved=None,
+        render=False,
+        render_kwargs=None,
+        observation_key="observation",
+        achieved_goal_key="achieved_goal",
+        desired_goal_key="desired_goal",
+        representation_goal_key="representation_goal",
+    ):
+        if render_kwargs is None:
+            render_kwargs = {}
+        self._env = env
+        self._policy = policy
+        self._max_num_epoch_paths_saved = max_num_epoch_paths_saved
+        self._render = render
+        self._render_kwargs = render_kwargs
+        self._epoch_paths = deque(maxlen=self._max_num_epoch_paths_saved)
+        self._observation_key = observation_key
+        self._achieved_goal_key = achieved_goal_key
+        self._desired_goal_key = desired_goal_key
+        self._representation_goal_key = representation_goal_key
+
+        self._num_steps_total = 0
+        self._num_paths_total = 0
+
+    def collect_new_paths(
+        self, max_path_length, num_steps, discard_incomplete_paths,
+    ):
+        paths = []
+        num_steps_collected = 0
+        while num_steps_collected < num_steps:
+            max_path_length_this_loop = min(  # Do not go over num_steps
+                max_path_length, num_steps - num_steps_collected,
+            )
+            path_a, path_b = multiagent_multitask_rollout(
+                self._env,
+                self._policy,
+                max_path_length=max_path_length_this_loop,
+                render=self._render,
+                render_kwargs=self._render_kwargs,
+                observation_key=self._observation_key,
+                achieved_goal_key=self._achieved_goal_key,
+                desired_goal_key=self._desired_goal_key,
+                representation_goal_key=self._representation_goal_key,
+            )
+            for path in [path_a, path_b]:
+                path_len = len(path["actions"])
+                if path_len > 0:
+                    num_steps_collected += path_len
+                    paths.append(path)
+        self._num_paths_total += len(paths)
+        self._num_steps_total += num_steps_collected
+        self._epoch_paths.extend(paths)
+        return paths
