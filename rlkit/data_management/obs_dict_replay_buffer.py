@@ -68,8 +68,10 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         else:
             self._action_dim = env.action_space.low.size
 
-        self._actions = np.zeros((max_replay_buffer_size, self._action_dim))
-        self._rewards = np.zeros((max_replay_buffer_size, 1))
+        self._actions = np.zeros(
+            (max_replay_buffer_size, self._action_dim), dtype=np.float32
+        )
+        self._rewards = np.zeros((max_replay_buffer_size, 1), dtype=np.float32)
         # self._terminals[i] = a terminal was received at time i
         self._terminals = np.zeros((max_replay_buffer_size, 1), dtype=np.uint8)
         # self._obs[key][i] is the value of observation[key] at time i
@@ -80,7 +82,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             assert (
                 key in self.ob_spaces
             ), "Key not found in the observation space: {}".format(key)
-            type = np.float
+            type = np.float32
             if key.startswith("image"):
                 type = np.uint8
             self._obs[key] = np.zeros(
@@ -89,7 +91,6 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             self._next_obs[key] = np.zeros(
                 (max_replay_buffer_size, self.ob_spaces[key].low.size), dtype=type
             )
-
         self.env_infos_sizes = env_infos_sizes
         if env_infos_sizes is None:
             if hasattr(env, "info_sizes"):
