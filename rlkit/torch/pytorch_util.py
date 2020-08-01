@@ -13,7 +13,7 @@ def copy_model_params_from_to(source, target):
         target_param.data.copy_(param.data)
 
 
-def fanin_init(tensor):
+def fanin_init(tensor, scale=1.0):
     size = tensor.size()
     if len(size) == 2:
         fan_in = size[0]
@@ -21,7 +21,7 @@ def fanin_init(tensor):
         fan_in = np.prod(size[1:])
     else:
         raise Exception("Shape must be have dimension at least 2.")
-    bound = 1.0 / np.sqrt(fan_in)
+    bound = np.sqrt(scale / fan_in)
     return tensor.data.uniform_(-bound, bound)
 
 
