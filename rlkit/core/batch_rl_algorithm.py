@@ -78,8 +78,9 @@ class BatchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
                 for _ in tqdm(range(self.num_trains_per_train_loop), ncols=80):
                     train_data = self.replay_buffer.random_batch(self.batch_size)
+                    gt.stamp("batch sampling", unique=False)
                     self.trainer.train(train_data)
-                gt.stamp("training", unique=False)
+                    gt.stamp("training", unique=False)
                 self.training_mode(False)
 
             self._end_epoch(epoch)
