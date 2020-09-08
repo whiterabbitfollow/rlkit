@@ -54,5 +54,5 @@ def np_to_pytorch_batch(np_batch):
     return {
         k: _elem_or_tuple_to_variable(x)
         for k, x in _filter_batch(np_batch)
-        if x.dtype != np.dtype('O')  # ignore object (e.g. dictionaries)
+        if x.dtype != np.dtype("O")  # ignore object (e.g. dictionaries)
     }
