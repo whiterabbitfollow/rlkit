@@ -139,7 +139,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         gt.stamp("logging")
         logger.record_dict(_get_epoch_timings(), global_step=epoch)
         logger.record_tabular("Epoch", epoch)
-        # logger.dump_tabular(with_prefix=False, with_timestamp=False)
+        logger.dump_tabular(with_prefix=False, with_timestamp=False)
 
     @abc.abstractmethod
     def training_mode(self, mode):
