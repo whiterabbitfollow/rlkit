@@ -31,21 +31,13 @@ class TanhGaussianPolicy(Mlp, ExplorationPolicy):
     """
 
     def __init__(
-        self,
-        hidden_sizes,
-        obs_dim,
-        action_dim,
-        std=None,
-        init_w=1e-3,
-        residual_connections=False,
-        **kwargs
+        self, hidden_sizes, obs_dim, action_dim, std=None, init_w=1e-3, **kwargs
     ):
         super().__init__(
             hidden_sizes,
             input_size=obs_dim,
             output_size=action_dim,
             init_w=init_w,
-            residual_connections=residual_connections,
             **kwargs
         )
         self.log_std = None

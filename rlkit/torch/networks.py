@@ -28,7 +28,6 @@ class Mlp(nn.Module):
         output_activation=identity,
         hidden_init=ptu.fanin_init,
         b_init_value=0.1,
-        residual_connections=False,
         layer_norm=False,
         layer_norm_kwargs=None,
     ):
@@ -42,7 +41,6 @@ class Mlp(nn.Module):
         self.hidden_sizes = hidden_sizes
         self.hidden_activation = hidden_activation
         self.output_activation = output_activation
-        self.residual_connections = residual_connections
         self.layer_norm = layer_norm
         self.fcs = []
         self.layer_norms = []
@@ -68,16 +66,8 @@ class Mlp(nn.Module):
     def forward(self, input, return_preactivations=False, return_features=False):
         h = input
         for i, fc in enumerate(self.fcs):
-            identity = h
-            out = fc(h)
-            # if self.layer_norm and i < len(self.fcs) - 1:
-            #     out = self.layer_norms[i](out)
-            if self.residual_connections and i > 0:
-                out += identity
-            out = self.hidden_activation(out)
-            h = out
-            # h = fc(h)
-            # h = self.hidden_activation(h)
+            h = fc(h)
+            h = self.hidden_activation(h)
 
         if return_features:
             return h
