@@ -181,6 +181,11 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             self._rewards[slc] = rewards
             self._terminals[slc] = terminals
             for key in self.ob_keys_to_save + self.internal_keys:
+                if not np.allclose(self._obs[key].shape[1:], obs[key].shape[1:]):
+                    raise ValueError(
+                        f"Observation ({key}) shape problem: "
+                        f"buffer {self._obs[key].shape[1:]}, path {obs[key].shape[1:]}"
+                    )
                 self._obs[key][slc] = obs[key]
                 self._next_obs[key][slc] = next_obs[key]
             for key in self._env_infos_keys:
@@ -278,7 +283,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
                 batch_goal=new_next_obs_dict[self.desired_goal_key][relabel_indices],
                 batch_action=new_actions[relabel_indices],
                 her_previous_reward=old_rewards[relabel_indices],
-                **env_infos
+                **env_infos,
             )
 
         rep_obs_goals = self.env.represent_goal(
@@ -311,6 +316,14 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
     def get_diagnostics(self):
         buffer_infos = OrderedDict()
         buffer_infos["Size"] = self._size
+        obs = self._obs["observation"][: self._size]
+        obs_rep_goal = self._obs["representation_goal"][: self._size]
+        buffer_infos["MeanObs"] = obs.mean()
+        buffer_infos["StdObs"] = obs.std()
+        buffer_infos["MeanGoal"] = obs_rep_goal.mean()
+        buffer_infos["StdGoal"] = obs_rep_goal.std()
+        # for k, v in buffer_infos.items():
+        #     print("{}: {}".format(k, v))
         return buffer_infos
 
 
