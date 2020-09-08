@@ -7,12 +7,17 @@ from rlkit.core.online_rl_algorithm import OnlineRLAlgorithm
 from rlkit.core.trainer import Trainer
 from rlkit.torch.core import np_to_pytorch_batch
 from torch import nn as nn
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 
 class TorchOnlineRLAlgorithm(OnlineRLAlgorithm):
-    def to(self, device):
-        for net in self.trainer.networks:
+    def to(self, device, distributed=False):
+        for i, net in enumerate(self.trainer.networks):
             net.to(device)
+            if distributed:
+                self.trainer.networks[i] = DDP(
+                    net, device_ids=[device], find_unused_parameters=True
+                )
 
     def training_mode(self, mode):
         for net in self.trainer.networks:
@@ -20,9 +25,13 @@ class TorchOnlineRLAlgorithm(OnlineRLAlgorithm):
 
 
 class TorchBatchRLAlgorithm(BatchRLAlgorithm):
-    def to(self, device):
-        for net in self.trainer.networks:
+    def to(self, device, distributed=False):
+        for i, net in enumerate(self.trainer.networks):
             net.to(device)
+            if distributed:
+                self.trainer.networks[i] = DDP(
+                    net, device_ids=[device], find_unused_parameters=True
+                )
 
     def training_mode(self, mode):
         for net in self.trainer.networks:

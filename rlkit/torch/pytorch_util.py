@@ -1,6 +1,7 @@
 import numpy as np
 
 import torch
+import torch.distributed as dist
 
 
 def soft_update_from_to(source, target, tau):
@@ -54,8 +55,8 @@ def set_gpu_mode(mode, gpu_id=0):
     global _gpu_id
     _gpu_id = gpu_id
     _use_gpu = mode
-    # device = torch.device("cuda:" + str(gpu_id) if _use_gpu else "cpu")
-    device = torch.device("cuda:0" if _use_gpu else "cpu")
+    device = torch.device(f"cuda:{gpu_id}" if _use_gpu else "cpu")
+    torch.backends.cudnn.benchmark = True
 
 
 def gpu_enabled():
@@ -119,3 +120,18 @@ def tensor(*args, torch_device=None, **kwargs):
 
 def normal(*args, **kwargs):
     return torch.normal(*args, **kwargs).to(device)
+
+
+"""
+Parallel wrappers
+"""
+
+dist_group = None
+
+
+def average_tensor(tensor):
+    global dist_group
+    if dist_group is None:
+        dist_group = dist.new_group(range(dist.get_world_size()))
+    dist.all_reduce(tensor, op=dist.reduce_op.SUM, group=dist_group)
+    return tensor / float(dist_group.size())

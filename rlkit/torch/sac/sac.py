@@ -93,6 +93,8 @@ class SACTrainer(TorchTrainer):
             ).mean()
             self.alpha_optimizer.zero_grad()
             alpha_loss.backward()
+            self.log_alpha.grad.data = ptu.average_tensor(self.log_alpha.grad.data)
+
             self.alpha_optimizer.step()
             alpha = self.log_alpha.exp()
         else:
@@ -225,7 +227,7 @@ class SACTrainer(TorchTrainer):
         ]
 
     def get_snapshot(self):
-        return dict(
+        snapshot = dict(
             policy=self.policy,
             qf1=self.qf1,
             qf2=self.qf2,
@@ -235,3 +237,8 @@ class SACTrainer(TorchTrainer):
             qf1_optimizer=self.qf1_optimizer,
             qf2_optimizer=self.qf2_optimizer,
         )
+        for k, v in snapshot.items():
+            if "optimizer" not in k:
+                if hasattr(v, "module"):
+                    snapshot[k] = v.module
+        return snapshot

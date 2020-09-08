@@ -17,8 +17,8 @@ import pickle
 import errno
 import torch
 from torch.utils.tensorboard import SummaryWriter
-
 from rlkit.core.tabulate import tabulate
+import rlkit.torch.pytorch_util as ptu
 
 
 class TerminalTablePrinter(object):
@@ -172,6 +172,7 @@ class Logger(object):
             self.pop_tabular_prefix()
 
     def record_tensorboard(self, d, global_step, prefix):
+        prefix = os.path.join(prefix, f"device{ptu.device.index}")
         if prefix not in self._tb_logs:
             self._tb_logs[prefix] = SummaryWriter(
                 os.path.join(self._snapshot_dir, prefix)

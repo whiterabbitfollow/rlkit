@@ -28,11 +28,11 @@ def multitask_rollout(
     env_infos = {}
     next_observations = []
     path_length = 0
-    agent.reset()
     if reset_kwargs:
         o = env.reset(**reset_kwargs)
     else:
         o = env.reset()
+    agent.reset()
     if render:
         env.render(**render_kwargs)
     desired_goal = o[desired_goal_key]
@@ -111,11 +111,11 @@ def multiagent_multitask_rollout(
     env_infos = [{}, {}]
     next_observations = [[], []]
     paths_length = 0
-    agent.reset()
     if reset_kwargs:
         o = env.reset(**reset_kwargs)
     else:
         o = env.reset()
+    agent.reset()
     if render:
         env.render(**render_kwargs)
 
