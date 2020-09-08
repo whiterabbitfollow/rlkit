@@ -27,5 +27,9 @@ class HERTrainer(TorchTrainer):
     def networks(self):
         return self._base_trainer.networks
 
+    @networks.setter
+    def networks(self, nets):
+        self._base_trainer.networks = nets
+
     def get_snapshot(self):
         return self._base_trainer.get_snapshot()

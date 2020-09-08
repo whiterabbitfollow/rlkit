@@ -226,13 +226,17 @@ class SACTrainer(TorchTrainer):
             self.target_qf2,
         ]
 
+    @networks.setter
+    def networks(self, nets):
+        self.policy, self.qf1, self.qf2, self.target_qf1, self.target_qf2 = nets
+
     def get_snapshot(self):
         snapshot = dict(
             policy=self.policy,
             qf1=self.qf1,
             qf2=self.qf2,
-            target_qf1=self.qf1,
-            target_qf2=self.qf2,
+            target_qf1=self.target_qf1,
+            target_qf2=self.target_qf2,
             policy_optimizer=self.policy_optimizer,
             qf1_optimizer=self.qf1_optimizer,
             qf2_optimizer=self.qf2_optimizer,

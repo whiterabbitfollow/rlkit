@@ -26,12 +26,12 @@ class TorchOnlineRLAlgorithm(OnlineRLAlgorithm):
 
 class TorchBatchRLAlgorithm(BatchRLAlgorithm):
     def to(self, device, distributed=False):
-        for i, net in enumerate(self.trainer.networks):
+        networks = self.trainer.networks
+        for i, net in enumerate(networks):
             net.to(device)
             if distributed:
-                self.trainer.networks[i] = DDP(
-                    net, device_ids=[device], find_unused_parameters=True
-                )
+                networks[i] = DDP(net, device_ids=[device], find_unused_parameters=True)
+        self.trainer.networks = networks
 
     def training_mode(self, mode):
         for net in self.trainer.networks:

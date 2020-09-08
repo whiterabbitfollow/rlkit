@@ -5,6 +5,7 @@ import gtimer as gt
 from rlkit.core import eval_util, logger
 from rlkit.data_management.replay_buffer import ReplayBuffer
 from rlkit.samplers.data_collector import DataCollector
+import rlkit.torch.pytorch_util as ptu
 from torch.utils.tensorboard import SummaryWriter
 
 
@@ -53,7 +54,9 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
 
     def _end_epoch(self, epoch):
         snapshot = self._get_snapshot()
-        logger.save_itr_params(epoch, snapshot)
+        # only save params for the first gpu
+        if not ptu.distributed or ptu.device.index == 0:
+            logger.save_itr_params(epoch, snapshot)
         gt.stamp("saving")
         self._log_stats(epoch)
 
@@ -139,7 +142,7 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         gt.stamp("logging")
         logger.record_dict(_get_epoch_timings(), global_step=epoch)
         logger.record_tabular("Epoch", epoch)
-        logger.dump_tabular(with_prefix=False, with_timestamp=False)
+        # logger.dump_tabular(with_prefix=False, with_timestamp=False)
 
     @abc.abstractmethod
     def training_mode(self, mode):
