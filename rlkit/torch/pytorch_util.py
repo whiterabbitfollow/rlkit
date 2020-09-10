@@ -48,17 +48,20 @@ _use_gpu = False
 device = None
 _gpu_id = 0
 distributed = False
+dist_rank = 0
 
 
-def set_gpu_mode(mode, gpu_id=0, distributed_mode=False):
+def set_gpu_mode(mode, gpu_id=0, distributed_mode=False, distributed_rank=0):
     global _use_gpu
     global device
     global _gpu_id
     global distributed
+    global dist_rank
     _gpu_id = gpu_id
     _use_gpu = mode
     device = torch.device(f"cuda:{gpu_id}" if _use_gpu else "cpu")
     distributed = distributed_mode
+    dist_rank = distributed_rank
     torch.backends.cudnn.benchmark = True
 
 
@@ -136,5 +139,5 @@ def average_tensor(tensor):
     global dist_group
     if dist_group is None:
         dist_group = dist.new_group(range(dist.get_world_size()))
-    dist.all_reduce(tensor, op=dist.reduce_op.SUM, group=dist_group)
+    dist.all_reduce(tensor, op=dist.ReduceOp.SUM, group=dist_group)
     return tensor / float(dist_group.size())

@@ -28,9 +28,11 @@ class TorchBatchRLAlgorithm(BatchRLAlgorithm):
     def to(self, device, distributed=False):
         networks = self.trainer.networks
         for i, net in enumerate(networks):
-            net.to(device)
+            net.to(device.index)
             if distributed:
-                networks[i] = DDP(net, device_ids=[device], find_unused_parameters=True)
+                networks[i] = DDP(
+                    net, device_ids=[device.index], find_unused_parameters=True
+                )
         self.trainer.networks = networks
 
     def training_mode(self, mode):
