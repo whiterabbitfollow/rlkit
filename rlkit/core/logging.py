@@ -172,7 +172,7 @@ class Logger(object):
             self.pop_tabular_prefix()
 
     def record_tensorboard(self, d, global_step, prefix):
-        prefix = os.path.join(prefix, f"device{ptu.device.index}")
+        prefix = os.path.join(prefix, f"rank{ptu.dist_rank}")
         if prefix not in self._tb_logs:
             self._tb_logs[prefix] = SummaryWriter(
                 os.path.join(self._snapshot_dir, prefix)
