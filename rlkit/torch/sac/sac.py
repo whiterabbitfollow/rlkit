@@ -134,22 +134,22 @@ class SACTrainer(TorchTrainer):
         Update networks
         """
         self.qf1_optimizer.zero_grad()
-        # qf1_loss.backward()
-        qf1_loss.backward(retain_graph=True)
-        norm_qf1 = nn.utils.clip_grad_norm_(self.qf1.parameters(), 10)
+        qf1_loss.backward()
+        # qf1_loss.backward(retain_graph=True)
+        norm_qf1 = nn.utils.clip_grad_norm_(self.qf1.parameters(), 100)
         # print("\nqf1", norm_qf1)
         self.qf1_optimizer.step()
 
         self.qf2_optimizer.zero_grad()
-        # qf2_loss.backward()
-        qf2_loss.backward(retain_graph=True)
-        norm_qf2 = nn.utils.clip_grad_norm_(self.qf2.parameters(), 10)
+        qf2_loss.backward()
+        # qf2_loss.backward(retain_graph=True)
+        norm_qf2 = nn.utils.clip_grad_norm_(self.qf2.parameters(), 100)
         # print("qf2", norm_qf2)
         self.qf2_optimizer.step()
 
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
-        norm_policy = nn.utils.clip_grad_norm_(self.policy.parameters(), 10)
+        norm_policy = nn.utils.clip_grad_norm_(self.policy.parameters(), 100)
         # print("policy", norm_policy)
         self.policy_optimizer.step()
         """
