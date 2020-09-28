@@ -1,9 +1,14 @@
 from collections import OrderedDict, deque
+import numpy as np
 
 from rlkit.core.eval_util import create_stats_ordered_dict
 from rlkit.samplers.data_collector.base import PathCollector
-from rlkit.samplers.rollout_functions import (multiagent_multitask_rollout,
-                                              multitask_rollout, rollout)
+from rlkit.samplers.rollout_functions import (
+    multiagent_multitask_rollout,
+    vec_multitask_rollout,
+    multitask_rollout,
+    rollout,
+)
 
 
 class MdpPathCollector(PathCollector):
@@ -176,6 +181,50 @@ class GoalConditionedPathCollector(PathCollector):
         )
 
 
+class ParallelGoalConditionedPathCollector(GoalConditionedPathCollector):
+    def collect_new_paths(
+        self, max_path_length, num_steps, discard_incomplete_paths,
+    ):
+        paths = []
+        num_steps_collected = 0
+        rollouts = None
+        obs_reset = None
+        while num_steps_collected < num_steps:
+            max_path_length_this_loop = min(  # Do not go over num_steps
+                max_path_length, num_steps - num_steps_collected,
+            )
+            collected_paths, rollouts, obs_reset = vec_multitask_rollout(
+                self._env,
+                self._policy,
+                rollouts,
+                obs_reset,
+                max_path_length=max_path_length_this_loop,
+                render=self._render,
+                render_kwargs=self._render_kwargs,
+                observation_key=self._observation_key,
+                desired_goal_key=self._desired_goal_key,
+                representation_goal_key=self._representation_goal_key,
+                return_dict_obs=True,
+            )
+            paths_len = []
+            for path in collected_paths:
+                path_len = len(path["actions"])
+                paths_len.append(path_len)
+                num_steps_collected += path_len
+                paths.append(path)
+            i = np.argmax(paths_len)
+            if (
+                paths_len[i] != max_path_length
+                and not paths[i]["terminals"][-1]
+                and discard_incomplete_paths
+            ):
+                break
+        self._num_paths_total += len(paths)
+        self._num_steps_total += num_steps_collected
+        self._epoch_paths.extend(paths)
+        return paths
+
+
 class MultiAgentGoalConditionedPathCollector(GoalConditionedPathCollector):
     def __init__(
         self,
@@ -234,3 +283,12 @@ class MultiAgentGoalConditionedPathCollector(GoalConditionedPathCollector):
         self._num_steps_total += num_steps_collected
         self._epoch_paths.extend(paths)
         return paths
+
+    def get_snapshot(self):
+        return dict(
+            # env=self._env,
+            policy=self._policy,
+            observation_key=self._observation_key,
+            achieved_q_key=self._achieved_q_key,
+            desired_q_key=self._desired_q_key,
+        )
