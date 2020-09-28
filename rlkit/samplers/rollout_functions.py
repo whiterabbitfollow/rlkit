@@ -1,4 +1,76 @@
 import numpy as np
+from rlkit.samplers.rollout import Rollout
+
+
+def flatten_n(xs):
+    xs = np.asarray(xs)
+    return xs.reshape((xs.shape[0], -1))
+
+
+def flatten_dict(dicts, keys):
+    """
+    Turns list of dicts into dict of np arrays
+    """
+    return {key: flatten_n([d[key] for d in dicts]) for key in keys}
+
+
+def vec_multitask_rollout(
+    env,
+    agent,
+    envs_rollout,
+    obs_reset,
+    max_path_length=np.inf,
+    render=False,
+    render_kwargs=None,
+    observation_key=None,
+    desired_goal_key=None,
+    representation_goal_key=None,
+    get_action_kwargs=None,
+    return_dict_obs=False,
+    reset_kwargs=None,
+):
+    if render_kwargs is None:
+        render_kwargs = {}
+    if get_action_kwargs is None:
+        get_action_kwargs = {}
+    n_envs = env.n_envs
+    if envs_rollout is None:
+        envs_rollout = [Rollout() for _ in range(n_envs)]
+    o = obs_reset
+    if o is None:
+        o = env.reset()
+    if render:
+        env.render(**render_kwargs)
+    d = np.zeros(n_envs, dtype=bool)
+    rollouts_length = np.array([len(rollout) for rollout in envs_rollout])
+    # print(f"rollouts length:{rollouts_length}")
+    # print(f"max length:{max_path_length}")
+    while rollouts_length.max() < max_path_length:
+        np_o = flatten_dict(o, o[0].keys())
+        np_s = np_o[observation_key]
+        np_g = np_o[representation_goal_key]
+        new_obs = np.hstack((np_s, np_g))
+        np_a = agent.get_actions(new_obs, **get_action_kwargs)
+        agent_info = [{} for _ in range(n_envs)]
+        next_o, r, d, env_info = env.step(np_a)
+        if render:
+            env.render(**render_kwargs)
+        for i in range(n_envs):
+            envs_rollout[i].add_transition(
+                o[i], np_a[i], next_o[i], r[i], d[i], env_info[i], agent_info[i]
+            )
+        if sum(d) > 0:
+            # print(f"done: {d}")
+            break
+        o = next_o
+        rollouts_length += 1
+    paths = []
+    for i, rollout in enumerate(envs_rollout):
+        if d[i] or rollouts_length[i] >= max_path_length:
+            o[i] = env.reset(i)
+            paths.append(rollout.to_dict())
+            envs_rollout[i] = Rollout()
+    return paths, envs_rollout, o
 
 
 def multitask_rollout(
@@ -76,7 +148,8 @@ def multitask_rollout(
     return dict(
         observations=observations,
         actions=actions,
-        rewards=np.array(rewards).reshape(-1, 1),
+        # rewards=np.array(rewards).reshape(-1, 1),
+        rewards=np.array(rewards),
         next_observations=next_observations,
         terminals=np.array(terminals).reshape(-1, 1),
         agent_infos=agent_infos,
