@@ -79,7 +79,7 @@ class Logger(object):
         self._header_printed = False
         self.table_printer = TerminalTablePrinter()
 
-        self._tb_logs = {}
+        self._tb_log = None
 
     def reset(self):
         self.__init__()
@@ -163,7 +163,7 @@ class Logger(object):
 
     def record_dict(self, d, global_step, prefix=None):
         if prefix is not None:
-            self.record_tensorboard(d, global_step, prefix[:-1])
+            self.record_tensorboard(d, global_step, prefix)
         if prefix is not None:
             self.push_tabular_prefix(prefix)
         for k, v in d.items():
@@ -172,13 +172,10 @@ class Logger(object):
             self.pop_tabular_prefix()
 
     def record_tensorboard(self, d, global_step, prefix):
-        prefix = os.path.join(prefix, f"rank{ptu.dist_rank}")
-        if prefix not in self._tb_logs:
-            self._tb_logs[prefix] = SummaryWriter(
-                os.path.join(self._snapshot_dir, prefix)
-            )
+        if self._tb_log is None:
+            self._tb_log = SummaryWriter(os.path.join(self._snapshot_dir, prefix))
+        tb_log = self._tb_log
 
-        tb_log = self._tb_logs[prefix]
         for k, v in d.items():
             if k in [
                 "Average Returns",
@@ -191,7 +188,7 @@ class Logger(object):
             idx = k.rfind("_")
             if idx >= 0:
                 k = k[:idx] + "/" + k[idx + 1 :]
-            tb_log.add_scalar(k, v, global_step=global_step)
+            tb_log.add_scalar(f"{prefix}{k}", v, global_step=global_step)
 
     def push_tabular_prefix(self, key):
         self._tabular_prefixes.append(key)
