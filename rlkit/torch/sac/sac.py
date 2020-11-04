@@ -2,7 +2,6 @@ from collections import OrderedDict
 
 import numpy as np
 
-import gtimer as gt
 import rlkit.torch.pytorch_util as ptu
 import torch
 import torch.optim as optim
@@ -54,7 +53,7 @@ class SACTrainer(TorchTrainer):
                 # heuristic value from Tuomas
                 self.target_entropy = -np.prod(self.env.action_space.shape).item()
             self.log_alpha = ptu.zeros(1, requires_grad=True)
-            self.alpha_optimizer = optimizer_class([self.log_alpha], lr=policy_lr,)
+            self.alpha_optimizer = optimizer_class([self.log_alpha], lr=policy_lr)
 
         self.render_eval_paths = render_eval_paths
 
@@ -93,8 +92,6 @@ class SACTrainer(TorchTrainer):
             ).mean()
             self.alpha_optimizer.zero_grad()
             alpha_loss.backward()
-            self.log_alpha.grad.data = ptu.average_tensor(self.log_alpha.grad.data)
-
             self.alpha_optimizer.step()
             alpha = self.log_alpha.exp()
         else:
@@ -126,42 +123,31 @@ class SACTrainer(TorchTrainer):
             self.reward_scale * rewards
             + (1.0 - terminals) * self.discount * target_q_values
         )
-        qf1_batch_loss = self.qf_criterion(q1_pred, q_target.detach())
-        qf2_batch_loss = self.qf_criterion(q2_pred, q_target.detach())
-        qf1_loss = qf1_batch_loss
-        qf2_loss = qf2_batch_loss
+        qf1_loss = self.qf_criterion(q1_pred, q_target.detach())
+        qf2_loss = self.qf_criterion(q2_pred, q_target.detach())
         """
         Update networks
         """
+        self.policy_optimizer.zero_grad()
+        policy_loss.backward()
+        norm_policy = nn.utils.clip_grad_norm_(self.policy.parameters(), 100)
+        self.policy_optimizer.step()
+
         self.qf1_optimizer.zero_grad()
         qf1_loss.backward()
-        # qf1_loss.backward(retain_graph=True)
         norm_qf1 = nn.utils.clip_grad_norm_(self.qf1.parameters(), 100)
-        # print("\nqf1", norm_qf1)
         self.qf1_optimizer.step()
 
         self.qf2_optimizer.zero_grad()
         qf2_loss.backward()
-        # qf2_loss.backward(retain_graph=True)
         norm_qf2 = nn.utils.clip_grad_norm_(self.qf2.parameters(), 100)
-        # print("qf2", norm_qf2)
         self.qf2_optimizer.step()
-
-        self.policy_optimizer.zero_grad()
-        policy_loss.backward()
-        norm_policy = nn.utils.clip_grad_norm_(self.policy.parameters(), 100)
-        # print("policy", norm_policy)
-        self.policy_optimizer.step()
         """
         Soft Updates
         """
         if self._n_train_steps_total % self.target_update_period == 0:
             ptu.soft_update_from_to(self.qf1, self.target_qf1, self.soft_target_tau)
             ptu.soft_update_from_to(self.qf2, self.target_qf2, self.soft_target_tau)
-        # """
-        # TD errors saving for prioritized replay buffer
-        # """
-        # self.qf_batch_loss = ptu.get_numpy(torch.max(qf1_batch_loss, qf2_batch_loss))
         """
         Save some statistics for eval
         """
@@ -173,8 +159,8 @@ class SACTrainer(TorchTrainer):
             """
             policy_loss = (log_pi - q_new_actions).mean()
 
-            self.eval_statistics["QF1 Loss"] = np.mean(ptu.get_numpy(qf1_batch_loss))
-            self.eval_statistics["QF2 Loss"] = np.mean(ptu.get_numpy(qf2_batch_loss))
+            self.eval_statistics["QF1 Loss"] = np.mean(ptu.get_numpy(qf1_loss))
+            self.eval_statistics["QF2 Loss"] = np.mean(ptu.get_numpy(qf2_loss))
             self.eval_statistics["Policy Loss"] = np.mean(ptu.get_numpy(policy_loss))
             self.eval_statistics["QF1 Grad Norm"] = norm_qf1
             self.eval_statistics["QF2 Grad Norm"] = norm_qf2
