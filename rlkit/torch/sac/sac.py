@@ -162,9 +162,9 @@ class SACTrainer(TorchTrainer):
             self.eval_statistics["QF1 Loss"] = np.mean(ptu.get_numpy(qf1_loss))
             self.eval_statistics["QF2 Loss"] = np.mean(ptu.get_numpy(qf2_loss))
             self.eval_statistics["Policy Loss"] = np.mean(ptu.get_numpy(policy_loss))
-            self.eval_statistics["QF1 Grad Norm"] = norm_qf1
-            self.eval_statistics["QF2 Grad Norm"] = norm_qf2
-            self.eval_statistics["Policy Grad Norm"] = norm_policy
+            self.eval_statistics["QF1 Grad Norm"] = ptu.get_numpy(norm_qf1)
+            self.eval_statistics["QF2 Grad Norm"] = ptu.get_numpy(norm_qf2)
+            self.eval_statistics["Policy Grad Norm"] = ptu.get_numpy(norm_policy)
             self.eval_statistics.update(
                 create_stats_ordered_dict("Q1 Predictions", ptu.get_numpy(q1_pred),)
             )
