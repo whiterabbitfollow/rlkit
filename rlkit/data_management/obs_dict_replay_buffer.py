@@ -91,12 +91,14 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
             self._next_obs[key] = np.zeros(
                 (max_replay_buffer_size, self.ob_spaces[key].low.size), dtype=type
             )
-        self.env_infos_sizes = env_infos_sizes
+
         if env_infos_sizes is None:
             if hasattr(env, "info_sizes"):
                 env_infos_sizes = env.info_sizes
             else:
                 env_infos_sizes = dict()
+
+        self.env_infos_sizes = env_infos_sizes
         self._env_infos = {}
         for key, size in env_infos_sizes.items():
             self._env_infos[key] = np.zeros((max_replay_buffer_size, size))
@@ -178,7 +180,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
         else:
             slc = np.s_[self._top : self._top + path_len, :]
             self._actions[slc] = actions
-            self._rewards[slc] = rewards
+            self._rewards[slc] = rewards.reshape(-1, 1)
             self._terminals[slc] = terminals
             for key in self.ob_keys_to_save + self.internal_keys:
                 if not np.allclose(self._obs[key].shape[1:], obs[key].shape[1:]):
@@ -189,7 +191,7 @@ class ObsDictRelabelingBuffer(ReplayBuffer):
                 self._obs[key][slc] = obs[key]
                 self._next_obs[key][slc] = next_obs[key]
             for key in self._env_infos_keys:
-                self._env_infos[key][slc] = env_infos[key]
+                self._env_infos[key][slc] = env_infos[key].reshape(-1, self.env_infos_sizes[key])
             for i in range(self._top, self._top + path_len):
                 self._idx_to_future_obs_idx[i] = np.arange(i, self._top + path_len)
         self._top = (self._top + path_len) % self.max_replay_buffer_size
