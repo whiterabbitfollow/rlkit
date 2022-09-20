@@ -16,7 +16,7 @@ def get_generic_path_information(paths, stat_prefix=""):
     """
     statistics = OrderedDict()
     # returns = [sum(path["rewards"]) for path in paths]
-    returns = [sum(path["rewards"].mean(1)) for path in paths]
+    returns = [sum(path["rewards"]) for path in paths]
 
     rewards = np.vstack([path["rewards"] for path in paths])
     statistics.update(
