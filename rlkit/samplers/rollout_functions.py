@@ -148,8 +148,8 @@ def multitask_rollout(
     return dict(
         observations=observations,
         actions=actions,
-        # rewards=np.array(rewards).reshape(-1, 1),
-        rewards=np.array(rewards),
+        rewards=np.array(rewards).reshape(-1, 1),
+        # rewards=np.array(rewards),
         next_observations=next_observations,
         terminals=np.array(terminals).reshape(-1, 1),
         agent_infos=agent_infos,
