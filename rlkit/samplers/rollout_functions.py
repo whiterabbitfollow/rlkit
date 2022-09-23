@@ -144,7 +144,7 @@ def multitask_rollout(
         observations = dict_obs
         next_observations = dict_next_obs
     for k, v in env_infos.items():
-        env_infos[k] = np.array(v)
+        env_infos[k] = np.array(v).reshape(-1, 1)
     return dict(
         observations=observations,
         actions=actions,
