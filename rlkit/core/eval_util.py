@@ -18,7 +18,7 @@ def get_generic_path_information(paths, stat_prefix=""):
     # returns = [sum(path["rewards"]) for path in paths]
     returns = [sum(path["rewards"]) for path in paths]
 
-    rewards = np.vstack([path["rewards"] for path in paths])
+    rewards = np.hstack([path["rewards"] for path in paths])
     statistics.update(
         create_stats_ordered_dict("Rewards", rewards, stat_prefix=stat_prefix)
     )
